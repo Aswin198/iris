@@ -1,0 +1,52 @@
+{
+  "scenario_id": "scenario_001",
+  "status": "recommendation_ready",
+  "recommended_plan": {
+    "plan_id": "plan_B",
+    "flight_id": "SQ318",
+    "original_gate": "B8",
+    "recommended_gate": "B10",
+    "original_departure": "2026-09-05T14:00:00+08:00",
+    "recommended_departure": "2026-09-05T14:18:00+08:00",
+    "expected_delay_minutes": 18,
+    "score": 23.5
+  },
+  "impact": {
+    "gate_conflict_avoided": true,
+    "passengers_at_risk": 4,
+    "downstream_delay_minutes": 12
+  },
+  "reasoning_summary": "Moving SQ318 to B10 avoids the upcoming B8 gate conflict while allowing the flight to depart before passenger connection risk increases significantly.",
+  "agent_results": [
+    {
+      "agent": "flight_agent",
+      "status": "completed",
+      "severity": "high",
+      "summary": "Incoming aircraft delay makes the original departure time infeasible."
+    },
+    {
+      "agent": "weather_agent",
+      "status": "completed",
+      "severity": "medium",
+      "summary": "Thunderstorm conditions may affect departure operations."
+    },
+    {
+      "agent": "gate_agent",
+      "status": "completed",
+      "severity": "high",
+      "summary": "Gate B8 conflict detected at 14:25."
+    },
+    {
+      "agent": "ground_agent",
+      "status": "completed",
+      "severity": "medium",
+      "summary": "Aircraft estimated ready at 14:12."
+    },
+    {
+      "agent": "passenger_agent",
+      "status": "completed",
+      "severity": "medium",
+      "summary": "11 passengers are currently at risk of missing connections."
+    }
+  ]
+}

@@ -28,3 +28,9 @@ data/processed/
 node_modules/
 dist/
 build/
+
+# Frontend build artifacts
+frontend/dist/
+frontend/node_modules/
+frontend/*.tsbuildinfo
+frontend/tsconfig.tsbuildinfo

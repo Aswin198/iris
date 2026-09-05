@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "frontend/src/components/planner/StandPlanner.tsx"
+        ],
+        "createdAt": "2026-09-05T13:19:59.623Z",
+        "reason": "impeccable-finish-reviewer verdict: on a Gantt bar left/width ARE the datum; a transform substitute would scale the label and misreport the time. Reviewer scored keeping it correct and raised no finding. One element, 200ms, state-conveying, reduced-motion honoured."
+      }
+    ]
+  }
+}

@@ -29,10 +29,47 @@ class BaseAgent:
                 user_prompt=user_prompt,
                 temperature=0.0,
             )
-
             cleaned = self._clean_json(response)
 
-            result = json.loads(cleaned)
+            try:
+                result = json.loads(cleaned)
+
+            except json.JSONDecodeError as parse_error:
+                print(
+                    f"{self.name}: malformed JSON from LLM, retrying once..."
+                )
+
+                repair_prompt = f"""
+            The previous response was invalid JSON.
+
+            INVALID RESPONSE:
+            {response}
+
+            Return the same information again as VALID JSON only.
+
+            Do not use Markdown.
+            Do not use code fences.
+            Do not add explanation.
+            Make sure all commas, brackets and quotation marks are valid.
+            """
+
+                repaired_response = self.llm.ask(
+                    system_prompt=system_prompt,
+                    user_prompt=repair_prompt,
+                    temperature=0.0,
+                    max_tokens=1000,
+                    max_retries=1,
+                )
+
+                repaired_cleaned = self._clean_json(
+                    repaired_response
+                )
+
+                result = json.loads(
+                    repaired_cleaned
+                )
+
+            print(f"{self.name}: LLM SUCCESS")
 
             return self._normalise_result(result)
 

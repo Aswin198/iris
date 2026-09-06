@@ -60,13 +60,6 @@ def build_shared_state(
             ),
         },
 
-        "weather": {
-            "condition": "thunderstorm",
-            "risk_level": "high",
-            "visibility_m": 5000,
-            "wind_speed_kt": 16,
-        },
-
         "gate": {
             "current_gate": flight["gate"],
             "conflict": True,

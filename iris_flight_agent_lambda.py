@@ -1,14 +1,11 @@
 import json
 import boto3
-import urllib.request
-import urllib.error
-import urllib.parse
 
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
 
-S3_BUCKET = "iris-hackathon-data-<yourname>"   # <-- replace with your actual bucket name
+S3_BUCKET = "iris-hackathon-data"  
 S3_FALLBACK_KEY = "opensky/fallback_match.json"
 
 # Bounding box roughly around Singapore/Changi (lamin, lomin, lamax, lomax)
@@ -39,26 +36,23 @@ OPENSKY_FIELDS = [
 
 
 # ---------------------------------------------------------------------------
-# 1. Raw API call
+# 1. Read cached live states from S3 (pushed there by opensky_pusher.py,
+#    which runs locally on a non-AWS IP since OpenSky blocks AWS/hyperscaler
+#    source IPs for direct API calls)
 # ---------------------------------------------------------------------------
 
-def fetch_opensky_state(bbox=DEFAULT_BBOX) -> dict:
-    lamin, lomin, lamax, lomax = bbox
-    params = urllib.parse.urlencode({
-        "lamin": lamin, "lomin": lomin, "lamax": lamax, "lomax": lomax
-    })
-    url = f"https://opensky-network.org/api/states/all?{params}"
-    req = urllib.request.Request(url, headers={"User-Agent": "iris-hackathon/1.0"})
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        return json.loads(resp.read().decode())
+S3_STATES_KEY = "opensky/latest_states.json"
+
+
+def load_cached_states() -> list:
+    obj = s3.get_object(Bucket=S3_BUCKET, Key=S3_STATES_KEY)
+    payload = json.loads(obj["Body"].read())
+    return payload.get("states", [])
 
 
 # ---------------------------------------------------------------------------
-# 2. Normalize + match
+# 2. Match against cached states (already normalized by the pusher script)
 # ---------------------------------------------------------------------------
-
-def normalize_states(raw_data: dict) -> list:
-    return [dict(zip(OPENSKY_FIELDS, state)) for state in raw_data.get("states", [])]
 
 
 def find_flight_by_callsign(states: list, callsign_prefix: str) -> dict:
@@ -102,25 +96,29 @@ def load_snapshot() -> dict:
 
 def get_opensky_match(flight_id: str) -> dict:
     """
-    Entry point: tries live OpenSky lookup for the given flight_id.
-    Falls back to the last known-good S3 snapshot if the flight isn't
-    found live, or if the OpenSky call itself fails.
+    Entry point: matches flight_id against the cached OpenSky states
+    (last pushed to S3 by opensky_pusher.py running locally). Falls back
+    to the last known-good single-match snapshot if the cache is missing
+    the flight, or if the cache itself can't be read.
     """
     prefix = flight_id_to_callsign_prefix(flight_id)
 
     try:
-        raw = fetch_opensky_state()
-        states = normalize_states(raw)
+        states = load_cached_states()
         match = find_flight_by_callsign(states, prefix)
         if match is not None:
-            save_snapshot(match)
+            match["_source"] = "cached_live"
             return match
-        print(f"WARNING: {flight_id} not found in live OpenSky data; falling back to S3 snapshot")
-        return load_snapshot()
+        print(f"WARNING: {flight_id} not found in cached OpenSky states; falling back to S3 snapshot")
+        fallback = load_snapshot()
+        fallback["_source"] = "s3_fallback"
+        return fallback
     except Exception as e:
-        print(f"WARNING: OpenSky fetch failed ({e}); falling back to S3 snapshot")
+        print(f"WARNING: reading cached states failed ({e}); falling back to S3 snapshot")
         try:
-            return load_snapshot()
+            fallback = load_snapshot()
+            fallback["_source"] = "s3_fallback"
+            return fallback
         except Exception as e2:
             print(f"WARNING: S3 fallback also failed ({e2})")
             return None
@@ -141,6 +139,9 @@ def build_flight_agent_response(flight_id: str, opensky_match: dict, delay_minut
             "constraints": [],
             "recommended_actions": ["Fall back to scheduled data; verify flight status manually."]
         }
+
+    source_tag = opensky_match.pop("_source", "unknown")  # debug-only, never sent to orchestrator
+    print(f"DEBUG: opensky data source = {source_tag}")
 
     findings = []
     on_ground = opensky_match.get("on_ground")

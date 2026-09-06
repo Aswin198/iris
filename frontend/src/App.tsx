@@ -5,6 +5,33 @@ import { AgentRail } from './components/agents/AgentRail';
 import { PlanLedger } from './components/plans/PlanLedger';
 import { DecisionLog } from './components/DecisionLog';
 import { useOps } from './state/opsStore';
+import { OpsProvider } from './state/opsStore';
+
+import {
+  useDispatcher,
+} from './state/dispatcherStore';
+
+import {
+  DispatcherDashboard,
+} from './components/dispatcher/DispatcherDashboard';
+
+export function Root() {
+  const {
+    selectedFlight,
+  } = useDispatcher();
+
+  if (!selectedFlight) {
+    return <DispatcherDashboard />;
+  }
+
+  return (
+    <OpsProvider
+      key={selectedFlight.flight_id}
+    >
+      <App />
+    </OpsProvider>
+  );
+}
 
 export function App() {
   return (

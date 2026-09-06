@@ -5,13 +5,29 @@ from backend.agents.gate_agent import GateAgent
 from backend.agents.ground_agent import GroundAgent
 from backend.agents.passenger_agent import PassengerAgent
 from backend.agents.recovery_agent import RecoveryAgent
-from datetime import datetime
+from datetime import datetime, timedelta
 from backend.orchestrator.state_builder import (
     build_shared_state,
 )
 
 
 class IRISOrchestrator:
+
+    GATE_CHANGE_SCORE = 6.0
+    GATE_DISTANCE_SCORE_PER_UNIT = 1.5
+
+    @staticmethod
+    def _gate_distance(current_gate: str, recommended_gate: str) -> int:
+        """Use the stand number as the walking-distance proxy for this demo."""
+        if current_gate == recommended_gate:
+            return 0
+        try:
+            return abs(
+                int("".join(filter(str.isdigit, recommended_gate)))
+                - int("".join(filter(str.isdigit, current_gate)))
+            )
+        except (TypeError, ValueError):
+            return 0
 
     def __init__(self):
 
@@ -96,6 +112,30 @@ class IRISOrchestrator:
             )
         )
 
+        recovery_result = {
+            "agent": "recovery_agent",
+            "status": "completed",
+            "severity": "low",
+            "summary": (
+                f"Recovery planning completed with "
+                f"{len(plans)} candidate plans."
+            ),
+            "findings": [
+                (
+                    f"{plan['plan_id']}: "
+                    f"gate {plan['recommended_gate']}, "
+                    f"departure {plan['recommended_departure']}"
+                )
+                for plan in plans
+            ],
+            "constraints": [],
+            "recommended_actions": [],
+        }
+
+        agent_results.append(
+            recovery_result
+        )
+
         scored_plans = (
             self._mock_optimizer(
                 scenario,
@@ -139,6 +179,8 @@ class IRISOrchestrator:
             selected_plan,
             best,
             agent_results,
+            plans,
+            scored_plans,
         )
 
     def _run_specialists(
@@ -170,15 +212,9 @@ class IRISOrchestrator:
         plans: list,
     ) -> list:
 
-        mock_scores = [
-            45.0,
-            23.5,
-            52.0,
-        ]
-
         results = []
 
-        for index, plan in enumerate(plans):
+        for plan in plans:
 
             scheduled_departure = datetime.fromisoformat(
                 scenario["flight"]["scheduled_departure"]
@@ -186,6 +222,9 @@ class IRISOrchestrator:
 
             recommended_departure = datetime.fromisoformat(
                 plan["recommended_departure"]
+            )
+            aircraft_ready_time = datetime.fromisoformat(
+                scenario["flight"]["aircraft_ready_time"]
             )
 
             departure_delay_minutes = max(
@@ -198,30 +237,81 @@ class IRISOrchestrator:
                 ),
             )
 
+            allowed_gates = scenario["gate"].get("alternative_gates", [])
+            current_gate = scenario["gate"]["current_gate"]
+            gate_available = plan["recommended_gate"] in [
+                current_gate,
+                *allowed_gates,
+            ]
+            conflict_time = scenario["gate"].get("conflict_time")
+            stand_clear_time = recommended_departure + timedelta(minutes=8)
+            has_gate_conflict = bool(
+                gate_available
+                and plan["recommended_gate"] == current_gate
+                and scenario["gate"].get("conflict")
+                and conflict_time
+                and stand_clear_time > datetime.fromisoformat(conflict_time)
+            )
+            gate_conflicts = int(not gate_available or has_gate_conflict)
+            delay_exposure = max(0, departure_delay_minutes - 10)
+            passengers_at_risk = round(delay_exposure * 0.7 / 60)
+            downstream_delay = round(departure_delay_minutes * 0.65)
+            gate_distance_units = self._gate_distance(
+                current_gate,
+                plan["recommended_gate"],
+            )
+            gate_change_score = (
+                self.GATE_CHANGE_SCORE
+                if plan["recommended_gate"] != current_gate
+                else 0
+            )
+
+            violations = []
+            if recommended_departure < aircraft_ready_time:
+                violations.append(
+                    f"Aircraft is not ready until {aircraft_ready_time.isoformat()}"
+                )
+            if not gate_available:
+                violations.append(
+                    f"Stand {plan['recommended_gate']} is occupied during the aircraft turnaround"
+                )
+            elif has_gate_conflict:
+                violations.append(
+                    f"Stand {current_gate} must be clear by {conflict_time}"
+                )
+
+            feasible = gate_conflicts == 0 and not violations
+            score = round(
+                departure_delay_minutes
+                + passengers_at_risk * 2
+                + downstream_delay * 0.5
+                + gate_change_score
+                + gate_distance_units * self.GATE_DISTANCE_SCORE_PER_UNIT,
+                1,
+            ) if feasible else None
+
             results.append(
                 {
                     "plan_id": plan["plan_id"],
 
-                    "feasible": True,
+                    "feasible": feasible,
 
-                    "score": mock_scores[index],
+                    "score": score,
 
                     "metrics": {
                         "departure_delay_minutes":
                             departure_delay_minutes,
 
-                        "gate_conflicts":
-                            0,
+                        "gate_conflicts": gate_conflicts,
 
-                        "passengers_at_risk":
-                            4 + index * 2,
+                        "passengers_at_risk": passengers_at_risk,
 
-                        "downstream_delay_minutes":
-                            12 + index * 4,
+                        "downstream_delay_minutes": downstream_delay,
+
+                        "gate_distance_units": gate_distance_units,
                     },
 
-                    "constraint_violations":
-                        [],
+                    "constraint_violations": violations,
                 }
             )
 
@@ -233,6 +323,8 @@ class IRISOrchestrator:
         plan: dict,
         optimizer_result: dict,
         agent_results: list,
+        plans: list,
+        scored_plans: list,
     ) -> dict:
 
         metrics = optimizer_result[
@@ -314,4 +406,10 @@ class IRISOrchestrator:
 
             "agent_results":
                 agent_results,
-        }
+
+            "candidate_plans":
+                plans,
+
+            "optimiser_results":
+                scored_plans,
+                    }

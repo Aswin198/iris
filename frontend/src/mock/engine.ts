@@ -57,9 +57,7 @@ export const DEFAULT_DISRUPTION: DisruptionInput = {
 const TURN_BUFFER_MIN = 20; // slack already in the published turnaround
 const STAND_CLEAR_MIN = 8; // pushback-to-stand-clear
 const RELOCATE_MIN = 6; // tow to an adjacent compatible stand
-const BAGGAGE_FULL_MIN = 40; // ramp minutes for a full hold load
 const PRIORITY_BAGGAGE_FACTOR = 0.6; // expediting tight-connection bags
-const WX_TAIL_MIN = 10; // queue recovery after a convective cell clears
 
 /** §9 weights. Lower total score is a better recovery plan. */
 export const SCORE_WEIGHTS = {
@@ -76,6 +74,16 @@ const OP_COST = {
   displace_claimant: 12,
   weather_window: 4,
 } as const;
+const GATE_DISTANCE_SCORE_PER_UNIT = 1.5;
+
+function gateDistance(currentGate: string, recommendedGate: string): number {
+  if (currentGate === recommendedGate) return 0;
+  const currentNumber = Number(currentGate.replace(/\D/g, ''));
+  const recommendedNumber = Number(recommendedGate.replace(/\D/g, ''));
+  return Number.isFinite(currentNumber) && Number.isFinite(recommendedNumber)
+    ? Math.abs(recommendedNumber - currentNumber)
+    : 0;
+}
 
 /* ---- derived scenario state ------------------------------------------- */
 
@@ -93,9 +101,10 @@ export function deriveState(input: DisruptionInput): DerivedState {
   const scheduled = isoToSgtMinutes(BASE_SCENARIO.flight.scheduled_departure);
 
   const inboundPush = Math.max(0, input.late_incoming_minutes - TURN_BUFFER_MIN);
-  const earliestReady = scheduled + inboundPush + input.ground_handling_delay_minutes;
+  const earliestReady = scheduled + inboundPush;
 
-  const baggageRemaining = Math.round(((100 - input.baggage_percent) / 100) * BAGGAGE_FULL_MIN);
+  // Recovery timing is driven only by inbound aircraft delay.
+  const baggageRemaining = 0;
 
   const weatherRisk =
     input.weather_condition === 'thunderstorm'
@@ -136,12 +145,9 @@ export function deriveState(input: DisruptionInput): DerivedState {
 }
 
 /** Connection risk climbs once a departure slips past the connection buffer. */
-function passengersAtRisk(input: DisruptionInput, delayMinutes: number): number {
+function passengersAtRisk(_input: DisruptionInput, delayMinutes: number): number {
   const exposed = Math.max(0, delayMinutes - 10);
-  return Math.min(
-    input.connecting_passengers,
-    Math.round((input.connecting_passengers * exposed * 0.7) / 60),
-  );
+  return Math.round((exposed * 0.7) / 60);
 }
 
 export function buildScenarioState(input: DisruptionInput): ScenarioState {
@@ -266,7 +272,7 @@ export function generatePlans(input: DisruptionInput): EvaluatedPlan[] {
   }
 
   /* PLAN C — keep the stand, re-sequence the claimant, wait out the cell. */
-  const offC = Math.max(offA, d.weather_window ? d.weather_window.end_min + WX_TAIL_MIN : offA);
+  const offC = offA;
   const claimant = STAND_BOARD.find((s) => s.stand_id === currentStand)?.blocks.find(
     (b) => b.claimant,
   );
@@ -315,14 +321,10 @@ function evaluate(input: DisruptionInput, d: DerivedState, spec: PlanSpec): Eval
     );
   }
 
-  const inWeatherWindow =
-    d.weather_window !== null &&
-    spec.off_block_min >= d.weather_window.start_min &&
-    spec.off_block_min <= d.weather_window.end_min;
-
-  const downstream = Math.round(delay * 0.65) + (inWeatherWindow ? 5 : 0);
+  const downstream = Math.round(delay * 0.65);
   const atRisk = passengersAtRisk(input, delay);
-  const opCost = spec.op_cost + (inWeatherWindow ? OP_COST.weather_window : 0);
+  const distanceUnits = gateDistance(BASE_SCENARIO.flight.current_gate, spec.stand_id);
+  const opCost = spec.op_cost + distanceUnits * GATE_DISTANCE_SCORE_PER_UNIT;
 
   const feasible = violations.length === 0;
   const score = feasible
@@ -352,6 +354,7 @@ function evaluate(input: DisruptionInput, d: DerivedState, spec: PlanSpec): Eval
         gate_conflicts: gateConflicts,
         passengers_at_risk: atRisk,
         downstream_delay_minutes: downstream,
+        gate_distance_units: distanceUnits,
       },
       constraint_violations: violations,
     },

@@ -9,8 +9,10 @@
  */
 
 import type { RecoveryRequest, RecoveryResponse } from '../types/contract';
-import { BASE_SCENARIO } from '../mock/airport_state';
 import { type DisruptionInput, runRecovery } from '../mock/engine';
+import type {
+  DispatcherFlight,
+} from '../state/dispatcherStore';
 
 export type Source = 'live' | 'mock';
 
@@ -23,10 +25,13 @@ export interface RecoveryOutcome {
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 const FORCE_MOCK = import.meta.env.VITE_USE_MOCK === '1';
-const REQUEST_TIMEOUT_MS = 8000;
+const REQUEST_TIMEOUT_MS = 60000;
 
 /** Translate the operator's console settings into a contract §2 request. */
-export function buildRequest(input: DisruptionInput): RecoveryRequest {
+export function buildRequest(
+  input: DisruptionInput,
+  flight: DispatcherFlight,
+): RecoveryRequest {
   const disruptions: RecoveryRequest['disruptions'] = [];
 
   if (input.late_incoming_minutes > 0) {
@@ -45,27 +50,48 @@ export function buildRequest(input: DisruptionInput): RecoveryRequest {
     disruptions.push({ type: 'weather', condition: input.weather_condition });
   }
   if (input.gate_conflict) {
-    disruptions.push({ type: 'gate_conflict', gate: BASE_SCENARIO.flight.current_gate });
+    disruptions.push({ type: 'gate_conflict', gate: flight.gate});
   }
   if (input.baggage_percent < 100) {
     disruptions.push({ type: 'baggage_delay', baggage_percent: input.baggage_percent });
   }
+  disruptions.push({
+    type: 'passenger_connection_risk',
+    connecting_passengers: input.connecting_passengers,
+  });
 
   return {
-    scenario_id: BASE_SCENARIO.scenario_id,
+    scenario_id:
+      `scenario_${flight.flight_id.toLowerCase()}`,
+
     flight: {
-      flight_id: BASE_SCENARIO.flight.flight_id,
-      origin: BASE_SCENARIO.flight.origin,
-      destination: BASE_SCENARIO.flight.destination,
-      scheduled_departure: BASE_SCENARIO.flight.scheduled_departure,
-      scheduled_arrival: BASE_SCENARIO.flight.scheduled_arrival,
-      gate: BASE_SCENARIO.flight.current_gate,
+      flight_id:
+        flight.flight_id,
+
+      origin:
+        flight.origin,
+
+      destination:
+        flight.destination,
+
+      scheduled_departure:
+        flight.scheduled_departure,
+
+      scheduled_arrival:
+        flight.scheduled_arrival,
+
+      gate:
+        flight.gate,
     },
+
     disruptions,
   };
 }
 
-export async function postRecovery(input: DisruptionInput): Promise<RecoveryOutcome> {
+export async function postRecovery(
+  input: DisruptionInput,
+  flight: DispatcherFlight,
+): Promise<RecoveryOutcome> {
   if (FORCE_MOCK) {
     return { response: runRecovery(input), source: 'mock' };
   }
@@ -77,7 +103,9 @@ export async function postRecovery(input: DisruptionInput): Promise<RecoveryOutc
     const res = await fetch(`${API_BASE}/api/recovery`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(buildRequest(input)),
+      body: JSON.stringify(
+  buildRequest(input, flight)
+),
       signal: controller.signal,
     });
 

@@ -1,5 +1,6 @@
-from backend.agents.flight_agent import FlightAgent
-from backend.agents.weather_agent import WeatherAgent
+from backend.integrations.agent_api_client import (
+    AgentAPIClient,
+)
 from backend.agents.gate_agent import GateAgent
 from backend.agents.ground_agent import GroundAgent
 from backend.agents.passenger_agent import PassengerAgent
@@ -14,9 +15,9 @@ class IRISOrchestrator:
 
     def __init__(self):
 
+        self.agent_api = AgentAPIClient()
+
         self.specialist_agents = [
-            FlightAgent(),
-            WeatherAgent(),
             GateAgent(),
             GroundAgent(),
             PassengerAgent(),
@@ -33,10 +34,58 @@ class IRISOrchestrator:
             request
         )
 
-        agent_results = (
+        agent_results = []
+
+        print("Calling flight_agent API...")
+
+        try:
+            flight_result = (
+                self.agent_api.get_flight(
+                    request
+                )
+            )
+
+            print("flight_agent: API SUCCESS")
+
+            agent_results.append(
+                flight_result
+            )
+
+        except Exception as error:
+            print(
+                f"flight_agent API unavailable: {error}"
+            )
+
+
+        print("Calling weather_agent API...")
+
+        try:
+            weather_result = (
+                self.agent_api.get_weather(
+                    "WSSS"
+                )
+            )
+
+            print("weather_agent: API SUCCESS")
+
+            agent_results.append(
+                weather_result
+            )
+
+        except Exception as error:
+            print(
+                f"weather_agent API unavailable: {error}"
+            )
+
+
+        local_results = (
             self._run_specialists(
                 scenario
             )
+        )
+
+        agent_results.extend(
+            local_results
         )
 
         plans = (

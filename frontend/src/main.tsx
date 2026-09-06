@@ -1,13 +1,21 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import './styles/tokens.css';
-import { App } from './App';
-import { OpsProvider } from './state/opsStore';
 
-createRoot(document.getElementById('root')!).render(
+import './styles/tokens.css';
+
+import { Root } from './App';
+
+import {
+  DispatcherProvider,
+} from './state/dispatcherStore';
+
+
+createRoot(
+  document.getElementById('root')!
+).render(
   <StrictMode>
-    <OpsProvider>
-      <App />
-    </OpsProvider>
+    <DispatcherProvider>
+      <Root />
+    </DispatcherProvider>
   </StrictMode>,
 );

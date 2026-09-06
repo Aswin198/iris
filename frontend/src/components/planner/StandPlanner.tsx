@@ -6,26 +6,47 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import {
-  BOARD_END_MIN,
-  BOARD_START_MIN,
   STAND_BOARD,
   SUBJECT_FLIGHT_ID,
   type Stand,
   type StandBlock,
 } from '../../mock/airport_state';
-import { minutesToHhmm } from '../../lib/time';
-import { buildBoardModel, buildGhost, pct, widthPct } from '../../state/boardModel';
+import { isoToSgtMinutes, minutesToHhmm } from '../../lib/time';
+import { buildBoardModel, buildGhost, getBoardWindow, pct, widthPct, type BoardWindow } from '../../state/boardModel';
 import { useOps } from '../../state/opsStore';
 import { useScenarioClock } from '../../lib/scenarioClock';
+import { useDispatcher } from '../../state/dispatcherStore';
 
 const TICK_STEP = 10;
 const LABEL_STEP = 20;
 
 export function StandPlanner() {
   const { state, projected, committed } = useOps();
+  const { selectedFlight } = useDispatcher();
+  const subjectGate = committed?.stand_id ?? selectedFlight?.gate;
+  const standBoard = useMemo(() => {
+    if (!selectedFlight) return STAND_BOARD;
+    return STAND_BOARD.map((stand) => ({
+      ...stand,
+      blocks: stand.blocks.filter((block) => !block.subject).concat(
+        stand.stand_id === subjectGate
+          ? [{
+              block_id: `subject_${selectedFlight.flight_id}`,
+              flight_id: selectedFlight.flight_id,
+              origin: selectedFlight.origin,
+              destination: selectedFlight.destination,
+              aircraft_type: selectedFlight.aircraft_type,
+              start_min: isoToSgtMinutes(selectedFlight.scheduled_arrival),
+              end_min: isoToSgtMinutes(selectedFlight.outbound_departure ?? selectedFlight.scheduled_departure),
+              subject: true,
+            }]
+          : [],
+      ),
+    }));
+  }, [selectedFlight, subjectGate]);
   const board = useMemo(
-    () => buildBoardModel(state.disruption, state.response, committed),
-    [state.disruption, state.response, committed],
+    () => buildBoardModel(state.disruption, state.response, committed, selectedFlight ?? undefined),
+    [state.disruption, state.response, committed, selectedFlight],
   );
   const ghost = useMemo(
     () => buildGhost(projected, board, state.committedPlanId),
@@ -33,6 +54,10 @@ export function StandPlanner() {
   );
 
   const { minutes: nowMin } = useScenarioClock();
+  const window = useMemo(
+    () => getBoardWindow(nowMin),
+    [Math.floor(nowMin / 10)],
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // On a narrow viewport the chart is wider than the screen. Open it on the
@@ -44,12 +69,14 @@ export function StandPlanner() {
     if (overflow <= 0) return;
     // Anchor just left of the now-line: FIRST VIEWPORT promises the NOW line on
     // the board, and from there the conflict falls inside the same window.
-    el.scrollLeft = Math.max(0, (pct(nowMin) / 100) * el.scrollWidth - el.clientWidth * 0.12);
+    el.scrollLeft = Math.max(0, (pct(nowMin, window) / 100) * el.scrollWidth - el.clientWidth * 0.12);
+    // The chart window moves every ten minutes; keep the initial scroll position
+    // stable while the clock ticks within the current window.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [window]);
 
   const ticks: number[] = [];
-  for (let m = BOARD_START_MIN; m <= BOARD_END_MIN; m += TICK_STEP) ticks.push(m);
+  for (let m = window.start_min; m <= window.end_min; m += TICK_STEP) ticks.push(m);
 
   const conflictLive =
     board.stand_deadline_min !== null && board.overrun_min > 0 && !state.committedPlanId;
@@ -59,29 +86,31 @@ export function StandPlanner() {
       aria-label="Stand allocation chart"
       className="flex shrink-0 flex-col border-b border-rule bg-field"
     >
-      <PlannerHeader board={board} conflictLive={conflictLive} />
+      <PlannerHeader board={board} conflictLive={conflictLive} window={window} />
 
       <div className="relative">
         <div ref={scrollRef} className="overflow-x-auto">
         <div className="min-w-[760px]">
-          <TimeAxis ticks={ticks} weather={board.weather_window} condition={board.weather_condition} />
+          <TimeAxis ticks={ticks} weather={board.weather_window} condition={board.weather_condition} window={window} />
 
           <div className="relative">
-            <GridLines ticks={ticks} />
+            <GridLines ticks={ticks} window={window} />
             {board.weather_window ? (
               <WeatherBand
                 from={board.weather_window.start_min}
                 to={board.weather_window.end_min}
+                window={window}
               />
             ) : null}
 
-            {STAND_BOARD.map((stand) => (
+            {standBoard.map((stand) => (
               <StandRow
                 key={stand.stand_id}
                 stand={stand}
                 board={board}
                 ghost={ghost && ghost.stand_id === stand.stand_id ? ghost : null}
                 committed={Boolean(state.committedPlanId)}
+                conflict={conflictLive}
                 phase={state.phase}
               />
             ))}
@@ -92,18 +121,18 @@ export function StandPlanner() {
             ) : null}
 
             {board.stand_deadline_min !== null ? (
-              <DeadlineMarker min={board.stand_deadline_min} breached={conflictLive} />
+              <DeadlineMarker min={board.stand_deadline_min} breached={conflictLive} window={window} />
             ) : null}
-            <NowLine min={nowMin} />
+            <NowLine min={nowMin} window={window} />
           </div>
 
-          <TimeAxis ticks={ticks} foot nowMin={nowMin} />
+          <TimeAxis ticks={ticks} foot nowMin={nowMin} window={window} />
           </div>
         </div>
         <EdgeFade />
       </div>
 
-      <Legend />
+      <Legend flightId={selectedFlight?.flight_id ?? SUBJECT_FLIGHT_ID} />
     </section>
   );
 }
@@ -124,9 +153,11 @@ function EdgeFade() {
 function PlannerHeader({
   board,
   conflictLive,
+  window,
 }: {
   board: ReturnType<typeof buildBoardModel>;
   conflictLive: boolean;
+  window: BoardWindow;
 }) {
   return (
     <header className="flex flex-wrap items-baseline gap-x-6 gap-y-1 border-b border-rule px-4 py-3">
@@ -134,7 +165,7 @@ function PlannerHeader({
         Terminal 2 stand allocation
       </h2>
       <p className="tnum font-data text-tiny text-ink-faint">
-        {minutesToHhmm(BOARD_START_MIN)}–{minutesToHhmm(BOARD_END_MIN)} SGT
+        {minutesToHhmm(window.start_min)}–{minutesToHhmm(window.end_min)} SGT
       </p>
       {conflictLive ? (
         <p className="tnum font-data text-tiny text-conflict">
@@ -155,12 +186,14 @@ function TimeAxis({
   weather,
   condition,
   nowMin,
+  window,
 }: {
   ticks: number[];
   foot?: boolean;
   weather?: { start_min: number; end_min: number } | null;
   condition?: string;
   nowMin?: number;
+  window: BoardWindow;
 }) {
   return (
     <div
@@ -171,7 +204,7 @@ function TimeAxis({
         {weather && condition ? (
           <span
             className="label absolute top-0.5 whitespace-nowrap text-[0.625rem] text-weather"
-            style={{ left: `${pct(weather.start_min)}%` }}
+            style={{ left: `${pct(weather.start_min, window)}%` }}
           >
             {condition} {minutesToHhmm(weather.start_min)}–{minutesToHhmm(weather.end_min)}
           </span>
@@ -184,7 +217,7 @@ function TimeAxis({
             <span
               key={m}
               className="tnum absolute bottom-1 -translate-x-1/2 font-data text-[0.625rem] tracking-wider text-ink-faint"
-              style={{ left: `${pct(m)}%` }}
+              style={{ left: `${pct(m, window)}%` }}
             >
               {minutesToHhmm(m)}
             </span>
@@ -193,7 +226,7 @@ function TimeAxis({
         {nowMin !== undefined ? (
           <span
             className="tnum absolute bottom-1 -translate-x-1/2 whitespace-nowrap font-data text-[0.625rem] font-semibold text-ink"
-            style={{ left: `${pct(nowMin)}%` }}
+            style={{ left: `${pct(nowMin, window)}%` }}
           >
             now {minutesToHhmm(nowMin)}
           </span>
@@ -203,7 +236,7 @@ function TimeAxis({
   );
 }
 
-function GridLines({ ticks }: { ticks: number[] }) {
+function GridLines({ ticks, window }: { ticks: number[]; window: BoardWindow }) {
   return (
     <div className="pointer-events-none absolute inset-y-0 left-[72px] right-3" aria-hidden="true">
       {ticks.map((m) => (
@@ -211,7 +244,7 @@ function GridLines({ ticks }: { ticks: number[] }) {
           key={m}
           className="absolute inset-y-0 w-px"
           style={{
-            left: `${pct(m)}%`,
+            left: `${pct(m, window)}%`,
             background: m % LABEL_STEP === 0 ? 'var(--rule)' : 'rgba(36,49,61,0.55)',
           }}
         />
@@ -222,7 +255,7 @@ function GridLines({ ticks }: { ticks: number[] }) {
 
 /* ---- overlays ---------------------------------------------------------- */
 
-function WeatherBand({ from, to }: { from: number; to: number }) {
+function WeatherBand({ from, to, window }: { from: number; to: number; window: BoardWindow }) {
   return (
     <div
       className="pointer-events-none absolute inset-y-0 left-[72px] right-3 z-0"
@@ -231,8 +264,8 @@ function WeatherBand({ from, to }: { from: number; to: number }) {
       <div
         className="absolute inset-y-0"
         style={{
-          left: `${pct(from)}%`,
-          width: `${widthPct(from, to)}%`,
+          left: `${pct(from, window)}%`,
+          width: `${widthPct(from, to, window)}%`,
           background:
             'linear-gradient(180deg, rgba(124,108,224,0.22), rgba(124,108,224,0.10) 60%, rgba(124,108,224,0.18))',
           borderLeft: '1px solid rgba(124,108,224,0.6)',
@@ -243,13 +276,13 @@ function WeatherBand({ from, to }: { from: number; to: number }) {
   );
 }
 
-function DeadlineMarker({ min, breached }: { min: number; breached: boolean }) {
+function DeadlineMarker({ min, breached, window }: { min: number; breached: boolean; window: BoardWindow }) {
   return (
     <div className="pointer-events-none absolute inset-y-0 left-[72px] right-3 z-20">
       <div
         className="absolute inset-y-0 w-px"
         style={{
-          left: `${pct(min)}%`,
+          left: `${pct(min, window)}%`,
           background: breached ? 'var(--conflict)' : 'var(--rule-strong)',
         }}
       >
@@ -264,10 +297,10 @@ function DeadlineMarker({ min, breached }: { min: number; breached: boolean }) {
   );
 }
 
-function NowLine({ min }: { min: number }) {
+function NowLine({ min, window }: { min: number; window: BoardWindow }) {
   return (
     <div className="pointer-events-none absolute inset-y-0 left-[72px] right-3 z-20">
-      <div className="absolute inset-y-0 w-px bg-ink" style={{ left: `${pct(min)}%` }}>
+      <div className="absolute inset-y-0 w-px bg-ink" style={{ left: `${pct(min, window)}%` }}>
         <span className="absolute -top-1 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rotate-45 bg-ink" />
       </div>
     </div>
@@ -327,15 +360,40 @@ function StandRow({
   board,
   ghost,
   committed,
+  conflict,
   phase,
 }: {
   stand: Stand;
   board: ReturnType<typeof buildBoardModel>;
   ghost: ReturnType<typeof buildGhost>;
   committed: boolean;
+  conflict: boolean;
   phase: string;
 }) {
   const isCurrent = stand.stand_id === board.current_gate;
+  const subject = stand.blocks.find((block) => block.subject);
+  const subjectEnd = subject
+    ? board.committed_off_block_min !== null
+      ? board.committed_off_block_min
+      : Math.max(subject.end_min, board.required_off_block_min)
+    : null;
+  const occupancyConflict = Boolean(
+    subject &&
+      subjectEnd !== null &&
+      stand.blocks.some(
+        (block) =>
+          !block.subject &&
+          block.start_min < subjectEnd &&
+          block.end_min > subject.start_min,
+      ),
+  );
+  const deadlineConflict = Boolean(
+    subject &&
+      subjectEnd !== null &&
+      stand.stand_id === board.current_gate &&
+      board.stand_deadline_min !== null &&
+      subjectEnd + 8 > board.stand_deadline_min,
+  );
 
   return (
     <div className="relative flex h-[3.25rem] items-stretch border-b border-rule last:border-b-0">
@@ -350,7 +408,15 @@ function StandRow({
         <div className="hatch-quiet absolute inset-y-1.5 left-0 right-3 opacity-40" aria-hidden />
 
         {stand.blocks.map((block) => (
-          <Block key={block.block_id} block={block} board={board} />
+          <Block
+            key={block.block_id}
+            block={block}
+            board={board}
+            conflict={
+              conflict ||
+              Boolean(block.subject && (occupancyConflict || deadlineConflict))
+            }
+          />
         ))}
 
         {isCurrent && board.stand_deadline_min !== null && !committed ? (
@@ -385,7 +451,15 @@ function ClearanceTail({ board }: { board: ReturnType<typeof buildBoardModel> })
   );
 }
 
-function Block({ block, board }: { block: StandBlock; board: ReturnType<typeof buildBoardModel> }) {
+function Block({
+  block,
+  board,
+  conflict,
+}: {
+  block: StandBlock;
+  board: ReturnType<typeof buildBoardModel>;
+  conflict: boolean;
+}) {
   // The subject flight's stand occupancy stretches to whatever the turnaround
   // now needs — that stretch is the disruption made visible.
   const end = block.subject
@@ -397,7 +471,9 @@ function Block({ block, board }: { block: StandBlock; board: ReturnType<typeof b
   const width = widthPct(block.start_min, end);
 
   const base = block.subject
-    ? 'bg-subject/85 text-[#20160a] border-subject'
+    ? conflict
+      ? 'hatch-conflict bg-conflict-deep text-ink border-conflict'
+      : 'bg-committed/85 text-[#071b12] border-committed'
     : block.claimant
       ? 'border-rule-strong bg-traffic/45 text-traffic-ink'
       : 'border-rule-strong bg-traffic/30 text-traffic-ink';
@@ -426,6 +502,7 @@ function Ghost({ ghost, phase }: { ghost: NonNullable<ReturnType<typeof buildGho
   const left = pct(ghost.from_min);
   const width = widthPct(ghost.from_min, ghost.to_min);
   const live = phase === 'ready' || phase === 'no_plan';
+  const blockMinutes = Math.max(0, ghost.to_min - ghost.from_min);
   if (!live) return null;
 
   return (
@@ -444,23 +521,33 @@ function Ghost({ ghost, phase }: { ghost: NonNullable<ReturnType<typeof buildGho
         backgroundColor: ghost.committed ? 'rgba(47,191,113,0.16)' : 'rgba(70,182,217,0.12)',
         boxShadow: ghost.committed ? '0 1px 3px rgb(0 0 0 / 0.5), 0 0 0 3px rgba(47,191,113,0.12)' : 'none',
       }}
+      title={`${ghost.label} · expected block ${formatBlockDuration(blockMinutes)} · ${minutesToHhmm(
+        ghost.from_min,
+      )}–${minutesToHhmm(ghost.to_min)}`}
     >
       <span
         className="tnum whitespace-nowrap px-2 font-data text-[0.625rem] font-semibold"
         style={{ color: ghost.committed ? 'var(--committed)' : 'var(--ghost)' }}
       >
-        {ghost.committed ? 'authorised' : ghost.label} {minutesToHhmm(ghost.to_min)}
+        {ghost.committed ? 'authorised' : ghost.label} · block {formatBlockDuration(blockMinutes)} ·{' '}
+        {minutesToHhmm(ghost.to_min)}
       </span>
     </div>
   );
 }
 
+function formatBlockDuration(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const remainder = Math.round(minutes % 60);
+  return hours ? `${hours}h ${String(remainder).padStart(2, '0')}m` : `${remainder}m`;
+}
+
 /* ---- legend ------------------------------------------------------------ */
 
-function Legend() {
+function Legend({ flightId }: { flightId: string }) {
   const items = [
     { label: 'other traffic', swatch: 'border border-rule-strong bg-traffic/30' },
-    { label: 'SQ318', swatch: 'bg-subject' },
+    { label: flightId, swatch: 'bg-subject' },
     { label: 'stand overrun', swatch: 'hatch-conflict' },
     { label: 'projected plan', swatch: 'border border-dashed border-ghost bg-ghost/15' },
     { label: 'authorised', swatch: 'border border-committed bg-committed/20' },
@@ -475,7 +562,7 @@ function Legend() {
         </span>
       ))}
       <span className="ml-auto label text-ink-dim">
-        {SUBJECT_FLIGHT_ID} · synthetic stand data
+        {flightId} · synthetic stand data
       </span>
     </div>
   );

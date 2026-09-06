@@ -131,6 +131,7 @@ export interface OptimiserMetrics {
   gate_conflicts: number;
   passengers_at_risk: number;
   downstream_delay_minutes: number;
+  gate_distance_units?: number;
 }
 
 export interface OptimiserResult {

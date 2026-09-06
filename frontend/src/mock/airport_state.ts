@@ -104,42 +104,8 @@ export const STAND_BOARD: Stand[] = [
   },
   {
     stand_id: 'B14',
-    category: 'code_c',
-    blocks: [
-      {
-        block_id: 'blk_tr456',
-        flight_id: 'TR456',
-        origin: 'SIN',
-        destination: 'BKK',
-        aircraft_type: 'A320neo',
-        start_min: 13 * 60 + 10,
-        end_min: 14 * 60 + 20,
-      },
-      {
-        block_id: 'blk_tr482',
-        flight_id: 'TR482',
-        origin: 'PEN',
-        destination: 'SIN',
-        aircraft_type: 'A320neo',
-        start_min: 14 * 60 + 45,
-        end_min: 15 * 60 + 20,
-      },
-    ],
-  },
-  {
-    stand_id: 'B16',
-    category: 'code_c',
-    blocks: [
-      {
-        block_id: 'blk_mi622',
-        flight_id: 'MI622',
-        origin: 'SIN',
-        destination: 'KUL',
-        aircraft_type: '737-800',
-        start_min: 13 * 60 + 50,
-        end_min: 14 * 60 + 50,
-      },
-    ],
+    category: 'code_e',
+    blocks: [],
   },
 ];
 

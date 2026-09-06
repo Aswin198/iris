@@ -1,18 +1,20 @@
 import { useOps } from '../../state/opsStore';
-import { BASE_SCENARIO } from '../../mock/airport_state';
 import { hhmm, minutesToHhmm } from '../../lib/time';
 import { useScenarioClock } from '../../lib/scenarioClock';
+import { useDispatcher } from '../../state/dispatcherStore';
 
 export function TopBar() {
   const { state } = useOps();
+  const { selectedFlight } = useDispatcher();
   const { minutes, seconds } = useScenarioClock();
   const live = state.source === 'live';
+  const flight = selectedFlight!;
 
   return (
     <header className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-rule bg-panel px-4 py-2.5">
       <h1 className="flex items-baseline gap-2.5">
         <span className="font-narrow text-md font-bold uppercase tracking-[0.18em] text-ink">
-          AeroSync
+          IRIS
         </span>
         <span className="label">WSSS · Changi</span>
       </h1>
@@ -20,20 +22,20 @@ export function TopBar() {
       <p className="flex items-baseline gap-2">
         <span className="label">flight</span>
         <span className="tnum font-data text-sm font-semibold text-subject">
-          {BASE_SCENARIO.flight.flight_id}
+          {flight.flight_id}
         </span>
         <span className="tnum font-data text-tiny text-ink-dim">
-          {BASE_SCENARIO.flight.origin}–{BASE_SCENARIO.flight.destination}
+          {flight.origin}–{flight.destination}
         </span>
         <span className="tnum font-data text-tiny text-ink-faint">
-          std {hhmm(BASE_SCENARIO.flight.scheduled_departure)}
+          std {hhmm(flight.scheduled_departure)}
         </span>
       </p>
 
       <div className="ml-auto flex items-center gap-4">
         <p className="flex items-baseline gap-2">
           <span className="label">scenario</span>
-          <span className="tnum font-data text-tiny text-ink-dim">{state.response?.scenario_id ?? BASE_SCENARIO.scenario_id}</span>
+          <span className="tnum font-data text-tiny text-ink-dim">{state.response?.scenario_id ?? `scenario_${flight.flight_id.toLowerCase()}`}</span>
         </p>
 
         <p

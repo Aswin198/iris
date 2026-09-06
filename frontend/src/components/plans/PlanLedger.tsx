@@ -201,6 +201,9 @@ function Row({
 
       <dl className="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-1">
         <Metric label="stand" value={plan.stand_id} />
+        {plan.metrics.gate_distance_units ? (
+          <Metric label="walk distance" value={`${plan.metrics.gate_distance_units} gate units`} />
+        ) : null}
         <Metric label="pax at risk" value={String(plan.metrics.passengers_at_risk)} />
         <Metric label="downstream" value={`${plan.metrics.downstream_delay_minutes} min`} />
         {plan.metrics.gate_conflicts > 0 ? (

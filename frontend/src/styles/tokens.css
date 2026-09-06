@@ -1,0 +1,240 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  AeroSync stand-planner world.
+  Status colours are structural roles carrying whole regions of the board,
+  not decorative accents. They come from stand-allocation chart convention.
+*/
+:root {
+  color-scheme: dark;
+
+  --field: #0e141b;
+  --panel: #151e27;
+  --panel-raised: #1b2733;
+  --rule: #24313d;
+  --rule-strong: #33465a;
+
+  --ink: #e6edf3;
+  --ink-dim: #9db0c2;
+  --ink-faint: #8a9db0;
+
+  --traffic: #3e5266;
+  --traffic-ink: #b3c6d6;
+  --subject: #f0a02a;
+  --subject-deep: #6a4409;
+  --conflict: #e2483c;
+  --conflict-deep: #4a1512;
+  --ghost: #46b6d9;
+  --committed: #2fbf71;
+  --committed-deep: #0f3d26;
+  --weather: #7c6ce0;
+
+  --sev-low: #6d8298;
+  --sev-medium: #f0a02a;
+  --sev-high: #ef6b3f;
+  --sev-critical: #e2483c;
+
+  /* Channel forms so Tailwind's alpha modifiers work on these roles. */
+  --field-rgb: 14 20 27;
+  --panel-rgb: 21 30 39;
+  --panel-raised-rgb: 27 39 51;
+  --rule-rgb: 36 49 61;
+  --rule-strong-rgb: 51 70 90;
+  --ink-rgb: 230 237 243;
+  --ink-dim-rgb: 157 176 194;
+  --ink-faint-rgb: 138 157 176;
+  --traffic-rgb: 62 82 102;
+  --traffic-ink-rgb: 179 198 214;
+  --subject-rgb: 240 160 42;
+  --conflict-rgb: 226 72 60;
+  --ghost-rgb: 70 182 217;
+  --committed-rgb: 47 191 113;
+  --weather-rgb: 124 108 224;
+
+  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.5), 0 8px 24px -12px rgb(0 0 0 / 0.7);
+  --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.55), 0 16px 40px -18px rgb(0 0 0 / 0.85);
+
+  --dur-fast: 140ms;
+  --dur: 200ms;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@layer base {
+  html {
+    background: var(--field);
+  }
+
+  body {
+    margin: 0;
+    background: var(--field);
+    color: var(--ink);
+    font-family: 'Archivo', system-ui, sans-serif;
+    font-size: 0.9375rem;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Browser surfaces belong to the design system too. */
+  ::selection {
+    background: var(--subject);
+    color: #12212e;
+  }
+
+  * {
+    scrollbar-color: var(--rule-strong) var(--field);
+    scrollbar-width: thin;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--field);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--rule-strong);
+    border: 2px solid var(--field);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--ink-faint);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ghost);
+    outline-offset: 2px;
+  }
+
+  input,
+  select,
+  button {
+    font: inherit;
+    color: inherit;
+    caret-color: var(--subject);
+  }
+
+  /* Every number in this console is measurement: keep the columns from dancing. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+}
+
+@layer components {
+  .hatch-conflict {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      var(--conflict) 0,
+      var(--conflict) 2px,
+      transparent 2px,
+      transparent 6px
+    );
+    background-color: var(--conflict-deep);
+  }
+
+  .hatch-quiet {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      var(--rule) 0,
+      var(--rule) 1px,
+      transparent 1px,
+      transparent 5px
+    );
+  }
+
+  /* Range controls: a ruled track and a square handle, matching the board. */
+  .ops-range {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 18px;
+    background: transparent;
+    cursor: pointer;
+  }
+  .ops-range::-webkit-slider-runnable-track {
+    height: 3px;
+    background: var(--rule);
+    border-top: 1px solid var(--rule-strong);
+  }
+  .ops-range::-moz-range-track {
+    height: 3px;
+    background: var(--rule);
+    border-top: 1px solid var(--rule-strong);
+  }
+  .ops-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 10px;
+    height: 16px;
+    margin-top: -7px;
+    background: var(--subject);
+    border: 1px solid #12212e;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.6);
+    transition: background var(--dur-fast) var(--ease);
+  }
+  .ops-range::-moz-range-thumb {
+    width: 10px;
+    height: 16px;
+    border-radius: 0;
+    background: var(--subject);
+    border: 1px solid #12212e;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.6);
+  }
+  .ops-range:hover::-webkit-slider-thumb {
+    background: #ffb340;
+  }
+  .ops-range:hover::-moz-range-thumb {
+    background: #ffb340;
+  }
+  .ops-range:disabled::-webkit-slider-thumb {
+    background: var(--rule-strong);
+  }
+  .ops-range:disabled::-moz-range-thumb {
+    background: var(--rule-strong);
+  }
+  .ops-range:disabled {
+    cursor: not-allowed;
+  }
+
+  /* Checkbox mark, drawn rather than borrowed from the platform. */
+  input[type='checkbox']:checked {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232a0a08' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7'/%3E%3C/svg%3E");
+    background-size: 82%;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+
+  .clamp-lg {
+    display: block;
+  }
+
+  @media (min-width: 1024px) {
+    .clamp-lg {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+  }
+
+  .label {
+    font-family: 'Archivo Narrow', Archivo, system-ui, sans-serif;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

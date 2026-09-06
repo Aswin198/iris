@@ -1,0 +1,26 @@
+{
+  "airport": "WSSS",
+  "airport_name": "Singapore Changi",
+  "min_connect_time_minutes": {
+    "intra_terminal": 45,
+    "inter_terminal": 60
+  },
+  "gates": [
+    {"gate_code": "A1",  "terminal": "T3", "cluster": "A", "body_type_capacity": ["narrow"], "has_jetbridge": true},
+    {"gate_code": "A3",  "terminal": "T3", "cluster": "A", "body_type_capacity": ["narrow", "wide"], "has_jetbridge": true},
+    {"gate_code": "A5",  "terminal": "T3", "cluster": "A", "body_type_capacity": ["narrow", "wide"], "has_jetbridge": true},
+    {"gate_code": "B4",  "terminal": "T3", "cluster": "B", "body_type_capacity": ["narrow", "wide"], "has_jetbridge": true},
+    {"gate_code": "B6",  "terminal": "T3", "cluster": "B", "body_type_capacity": ["narrow", "wide"], "has_jetbridge": true},
+    {"gate_code": "B8",  "terminal": "T3", "cluster": "B", "body_type_capacity": ["narrow", "wide"], "has_jetbridge": true},
+    {"gate_code": "B10", "terminal": "T3", "cluster": "B", "body_type_capacity": ["narrow", "wide"], "has_jetbridge": true},
+    {"gate_code": "B12", "terminal": "T3", "cluster": "B", "body_type_capacity": ["narrow", "wide", "a380"], "has_jetbridge": true},
+    {"gate_code": "C1",  "terminal": "T3", "cluster": "C", "body_type_capacity": ["narrow", "wide", "a380"], "has_jetbridge": true},
+    {"gate_code": "C2",  "terminal": "T3", "cluster": "C", "body_type_capacity": ["narrow", "wide"], "has_jetbridge": true},
+    {"gate_code": "D31", "terminal": "T1", "cluster": "D", "body_type_capacity": ["narrow", "wide"], "has_jetbridge": true},
+    {"gate_code": "D33", "terminal": "T1", "cluster": "D", "body_type_capacity": ["narrow", "wide"], "has_jetbridge": true},
+    {"gate_code": "E22", "terminal": "T2", "cluster": "E", "body_type_capacity": ["narrow", "wide"], "has_jetbridge": true},
+    {"gate_code": "E24", "terminal": "T2", "cluster": "E", "body_type_capacity": ["narrow"], "has_jetbridge": true},
+    {"gate_code": "F31", "terminal": "T2", "cluster": "F", "body_type_capacity": ["narrow", "wide", "a380"], "has_jetbridge": true},
+    {"gate_code": "F32", "terminal": "T2", "cluster": "F", "body_type_capacity": ["narrow", "wide"], "has_jetbridge": true}
+  ]
+}

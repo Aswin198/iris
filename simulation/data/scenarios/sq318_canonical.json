@@ -1,0 +1,79 @@
+{
+  "scenario_id": "sq318_canonical",
+  "airport": "WSSS",
+  "reference_time": "2026-09-05T14:00:00+08:00",
+  "description": "SQ318 SIN->LHR with late incoming aircraft, thunderstorm, B8 gate conflict at 14:25, tight passenger connections.",
+
+  "weather": {
+    "condition": "thunderstorm",
+    "risk_level": "high",
+    "visibility_m": 5000,
+    "wind_speed_kt": 16,
+    "wind_direction_deg": 220,
+    "closure_windows": []
+  },
+
+  "focus_flight": {
+    "flight_id": "SQ318",
+    "origin": "SIN",
+    "destination": "LHR",
+    "aircraft_type": "A350-900",
+    "scheduled_departure": "2026-09-05T14:00:00+08:00",
+    "scheduled_arrival": "2026-09-05T20:30:00+01:00",
+    "assigned_gate": "B8",
+    "aircraft_ready_time": "2026-09-05T14:12:00+08:00",
+    "total_passengers": 280,
+    "connecting_passengers": 42,
+    "downstream_buffer_minutes": 6,
+    "expected_baseline_delay_minutes": 25,
+    "connections": [
+      {"count": 4,  "slack_minutes": 15, "same_terminal": false},
+      {"count": 7,  "slack_minutes": 20, "same_terminal": false},
+      {"count": 4,  "slack_minutes": 30, "same_terminal": true},
+      {"count": 6,  "slack_minutes": 45, "same_terminal": true},
+      {"count": 11, "slack_minutes": 55, "same_terminal": false},
+      {"count": 10, "slack_minutes": 90, "same_terminal": true}
+    ]
+  },
+
+  "ground_operations": {
+    "baggage_percent": 75,
+    "refuelling_complete": true,
+    "cleaning_complete": true,
+    "boarding_percent": 60,
+    "estimated_ready_time": "2026-09-05T14:12:00+08:00"
+  },
+
+  "surrounding_flights": [
+    {"flight_id": "SQ26",  "aircraft_type": "A350-900",  "assigned_gate": "B8",  "gate_occupation_start": "2026-09-05T14:25:00+08:00", "gate_occupation_end": "2026-09-05T15:55:00+08:00", "route": "SIN-SFO"},
+    {"flight_id": "SQ12",  "aircraft_type": "777-300ER", "assigned_gate": "B10", "gate_occupation_start": "2026-09-05T12:30:00+08:00", "gate_occupation_end": "2026-09-05T14:05:00+08:00", "route": "LAX-SIN"},
+    {"flight_id": "SQ322", "aircraft_type": "A380-800",  "assigned_gate": "B12", "gate_occupation_start": "2026-09-05T15:30:00+08:00", "gate_occupation_end": "2026-09-05T17:00:00+08:00", "route": "SIN-LHR"},
+    {"flight_id": "SQ222", "aircraft_type": "787-10",    "assigned_gate": "A5",  "gate_occupation_start": "2026-09-05T13:40:00+08:00", "gate_occupation_end": "2026-09-05T15:20:00+08:00", "route": "SIN-SYD"},
+    {"flight_id": "SQ38",  "aircraft_type": "A350-900",  "assigned_gate": "A3",  "gate_occupation_start": "2026-09-05T14:10:00+08:00", "gate_occupation_end": "2026-09-05T16:00:00+08:00", "route": "SIN-LAX"},
+    {"flight_id": "SQ806", "aircraft_type": "777-300ER", "assigned_gate": "B4",  "gate_occupation_start": "2026-09-05T13:50:00+08:00", "gate_occupation_end": "2026-09-05T15:10:00+08:00", "route": "SIN-PEK"},
+    {"flight_id": "SQ636", "aircraft_type": "787-10",    "assigned_gate": "B6",  "gate_occupation_start": "2026-09-05T14:00:00+08:00", "gate_occupation_end": "2026-09-05T15:30:00+08:00", "route": "SIN-NRT"},
+    {"flight_id": "TR726", "aircraft_type": "737-800",   "assigned_gate": "C2",  "gate_occupation_start": "2026-09-05T13:45:00+08:00", "gate_occupation_end": "2026-09-05T14:35:00+08:00", "route": "SIN-BKK"},
+    {"flight_id": "SQ106", "aircraft_type": "737-800",   "assigned_gate": "C1",  "gate_occupation_start": "2026-09-05T14:20:00+08:00", "gate_occupation_end": "2026-09-05T15:15:00+08:00", "route": "SIN-KUL"},
+    {"flight_id": "MI522", "aircraft_type": "737-800",   "assigned_gate": "E24", "gate_occupation_start": "2026-09-05T13:30:00+08:00", "gate_occupation_end": "2026-09-05T14:20:00+08:00", "route": "SIN-CGK"},
+    {"flight_id": "SQ861", "aircraft_type": "A350-900",  "assigned_gate": "D33", "gate_occupation_start": "2026-09-05T14:15:00+08:00", "gate_occupation_end": "2026-09-05T16:10:00+08:00", "route": "SIN-HKG"},
+    {"flight_id": "SQ421", "aircraft_type": "777-300ER", "assigned_gate": "F31", "gate_occupation_start": "2026-09-05T13:55:00+08:00", "gate_occupation_end": "2026-09-05T15:45:00+08:00", "route": "SIN-BOM"},
+    {"flight_id": "SQ970", "aircraft_type": "737-800",   "assigned_gate": "E22", "gate_occupation_start": "2026-09-05T14:30:00+08:00", "gate_occupation_end": "2026-09-05T15:25:00+08:00", "route": "SIN-BKK"},
+    {"flight_id": "SQ916", "aircraft_type": "A350-900",  "assigned_gate": "D31", "gate_occupation_start": "2026-09-05T13:20:00+08:00", "gate_occupation_end": "2026-09-05T14:50:00+08:00", "route": "MNL-SIN"},
+    {"flight_id": "SQ317", "aircraft_type": "A350-900",  "assigned_gate": "F32", "gate_occupation_start": "2026-09-05T14:45:00+08:00", "gate_occupation_end": "2026-09-05T16:30:00+08:00", "route": "LHR-SIN"}
+  ],
+
+  "disruptions": [
+    {"type": "late_incoming_aircraft", "delay_minutes": 20, "affects_flight": "SQ318"},
+    {"type": "ground_handling_delay",  "delay_minutes": 12, "affects_flight": "SQ318"},
+    {"type": "thunderstorm", "severity": "high", "risk_window_start": "2026-09-05T14:10:00+08:00", "risk_window_end": "2026-09-05T14:30:00+08:00"},
+    {"type": "gate_conflict", "gate": "B8", "conflict_time": "2026-09-05T14:25:00+08:00", "conflicting_flight": "SQ26"}
+  ],
+
+  "alternative_gates": ["B10", "B12"],
+
+  "canonical_plans": [
+    {"plan_id": "plan_A", "flight_id": "SQ318", "recommended_gate": "B8",  "recommended_departure": "2026-09-05T14:25:00+08:00", "actions": ["Keep aircraft at B8 and depart at 14:25"]},
+    {"plan_id": "plan_B", "flight_id": "SQ318", "recommended_gate": "B10", "recommended_departure": "2026-09-05T14:18:00+08:00", "actions": ["Reassign aircraft from B8 to B10", "Prioritise baggage for passengers with tight connections"]},
+    {"plan_id": "plan_C", "flight_id": "SQ318", "recommended_gate": "B12", "recommended_departure": "2026-09-05T14:40:00+08:00", "actions": ["Reassign aircraft from B8 to B12 and delay until 14:40"]}
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "scenario_id": "tr726_regional",
+  "airport": "WSSS",
+  "reference_time": "2026-09-05T15:30:00+08:00",
+  "description": "TR726 SIN->BKK Scoot narrowbody with mild ground delay and afternoon rain. Small disruption, most plans feasible.",
+
+  "weather": {
+    "condition": "light_rain",
+    "risk_level": "medium",
+    "visibility_m": 8000,
+    "wind_speed_kt": 10,
+    "wind_direction_deg": 180,
+    "closure_windows": []
+  },
+
+  "focus_flight": {
+    "flight_id": "TR726",
+    "origin": "SIN",
+    "destination": "BKK",
+    "aircraft_type": "737-800",
+    "scheduled_departure": "2026-09-05T15:30:00+08:00",
+    "scheduled_arrival": "2026-09-05T16:55:00+07:00",
+    "assigned_gate": "C2",
+    "aircraft_ready_time": "2026-09-05T15:38:00+08:00",
+    "total_passengers": 178,
+    "connecting_passengers": 18,
+    "downstream_buffer_minutes": 15,
+    "expected_baseline_delay_minutes": 12,
+    "connections": [
+      {"count": 3, "slack_minutes": 20, "same_terminal": true},
+      {"count": 4, "slack_minutes": 40, "same_terminal": true},
+      {"count": 5, "slack_minutes": 60, "same_terminal": false},
+      {"count": 6, "slack_minutes": 90, "same_terminal": true}
+    ]
+  },
+
+  "ground_operations": {
+    "baggage_percent": 90,
+    "refuelling_complete": true,
+    "cleaning_complete": true,
+    "boarding_percent": 40,
+    "estimated_ready_time": "2026-09-05T15:38:00+08:00"
+  },
+
+  "surrounding_flights": [
+    {"flight_id": "TR456", "aircraft_type": "737-800",  "assigned_gate": "C2",  "gate_occupation_start": "2026-09-05T16:15:00+08:00", "gate_occupation_end": "2026-09-05T17:20:00+08:00", "route": "SIN-KUL"},
+    {"flight_id": "SQ106", "aircraft_type": "737-800",  "assigned_gate": "C1",  "gate_occupation_start": "2026-09-05T15:50:00+08:00", "gate_occupation_end": "2026-09-05T16:45:00+08:00", "route": "SIN-KUL"},
+    {"flight_id": "MI522", "aircraft_type": "737-800",  "assigned_gate": "E24", "gate_occupation_start": "2026-09-05T15:10:00+08:00", "gate_occupation_end": "2026-09-05T16:05:00+08:00", "route": "SIN-CGK"},
+    {"flight_id": "SQ970", "aircraft_type": "737-800",  "assigned_gate": "E22", "gate_occupation_start": "2026-09-05T16:00:00+08:00", "gate_occupation_end": "2026-09-05T16:55:00+08:00", "route": "SIN-BKK"},
+    {"flight_id": "TR120", "aircraft_type": "737-800",  "assigned_gate": "A1",  "gate_occupation_start": "2026-09-05T14:50:00+08:00", "gate_occupation_end": "2026-09-05T15:35:00+08:00", "route": "HKT-SIN"}
+  ],
+
+  "disruptions": [
+    {"type": "ground_handling_delay", "delay_minutes": 8, "affects_flight": "TR726"},
+    {"type": "baggage_delay", "delay_minutes": 5, "affects_flight": "TR726"}
+  ],
+
+  "alternative_gates": ["C1", "A1"],
+
+  "canonical_plans": [
+    {"plan_id": "plan_A", "flight_id": "TR726", "recommended_gate": "C2", "recommended_departure": "2026-09-05T15:42:00+08:00", "actions": ["Stay at C2 and depart 12 minutes late"]},
+    {"plan_id": "plan_B", "flight_id": "TR726", "recommended_gate": "A1", "recommended_departure": "2026-09-05T15:45:00+08:00", "actions": ["Move to A1 and depart 15 minutes late"]},
+    {"plan_id": "plan_C", "flight_id": "TR726", "recommended_gate": "C2", "recommended_departure": "2026-09-05T16:00:00+08:00", "actions": ["Hold at C2 until 16:00 for full ground readiness"]}
+  ]
+}

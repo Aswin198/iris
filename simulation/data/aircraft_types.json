@@ -1,0 +1,54 @@
+{
+  "aircraft_types": {
+    "A350-900": {
+      "body_type": "wide",
+      "typical_seats": 253,
+      "turnaround_minutes": 90,
+      "baggage_minutes": 40,
+      "refuelling_minutes": 30,
+      "cleaning_minutes": 30,
+      "catering_minutes": 25,
+      "boarding_minutes": 40
+    },
+    "777-300ER": {
+      "body_type": "wide",
+      "typical_seats": 264,
+      "turnaround_minutes": 105,
+      "baggage_minutes": 45,
+      "refuelling_minutes": 35,
+      "cleaning_minutes": 35,
+      "catering_minutes": 30,
+      "boarding_minutes": 45
+    },
+    "A380-800": {
+      "body_type": "a380",
+      "typical_seats": 471,
+      "turnaround_minutes": 150,
+      "baggage_minutes": 60,
+      "refuelling_minutes": 45,
+      "cleaning_minutes": 45,
+      "catering_minutes": 40,
+      "boarding_minutes": 60
+    },
+    "787-10": {
+      "body_type": "wide",
+      "typical_seats": 337,
+      "turnaround_minutes": 95,
+      "baggage_minutes": 40,
+      "refuelling_minutes": 30,
+      "cleaning_minutes": 30,
+      "catering_minutes": 25,
+      "boarding_minutes": 45
+    },
+    "737-800": {
+      "body_type": "narrow",
+      "typical_seats": 162,
+      "turnaround_minutes": 50,
+      "baggage_minutes": 20,
+      "refuelling_minutes": 20,
+      "cleaning_minutes": 20,
+      "catering_minutes": 15,
+      "boarding_minutes": 25
+    }
+  }
+}

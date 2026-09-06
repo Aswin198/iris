@@ -1,0 +1,70 @@
+{
+  "scenario_id": "sq322_a380",
+  "airport": "WSSS",
+  "reference_time": "2026-09-05T16:00:00+08:00",
+  "description": "SQ322 SIN->LHR A380 superjumbo. Widebody-only gate constraint plus heavy connecting-passenger load.",
+
+  "weather": {
+    "condition": "clear",
+    "risk_level": "low",
+    "visibility_m": 10000,
+    "wind_speed_kt": 8,
+    "wind_direction_deg": 90,
+    "closure_windows": []
+  },
+
+  "focus_flight": {
+    "flight_id": "SQ322",
+    "origin": "SIN",
+    "destination": "LHR",
+    "aircraft_type": "A380-800",
+    "scheduled_departure": "2026-09-05T16:00:00+08:00",
+    "scheduled_arrival": "2026-09-05T22:45:00+01:00",
+    "assigned_gate": "B12",
+    "aircraft_ready_time": "2026-09-05T16:15:00+08:00",
+    "total_passengers": 442,
+    "connecting_passengers": 68,
+    "downstream_buffer_minutes": 10,
+    "expected_baseline_delay_minutes": 20,
+    "connections": [
+      {"count": 6,  "slack_minutes": 15, "same_terminal": false},
+      {"count": 10, "slack_minutes": 25, "same_terminal": false},
+      {"count": 8,  "slack_minutes": 35, "same_terminal": true},
+      {"count": 12, "slack_minutes": 50, "same_terminal": true},
+      {"count": 20, "slack_minutes": 70, "same_terminal": false},
+      {"count": 12, "slack_minutes": 100, "same_terminal": true}
+    ]
+  },
+
+  "ground_operations": {
+    "baggage_percent": 60,
+    "refuelling_complete": false,
+    "cleaning_complete": true,
+    "boarding_percent": 20,
+    "estimated_ready_time": "2026-09-05T16:15:00+08:00"
+  },
+
+  "surrounding_flights": [
+    {"flight_id": "SQ318", "aircraft_type": "A350-900",  "assigned_gate": "B12", "gate_occupation_start": "2026-09-05T16:30:00+08:00", "gate_occupation_end": "2026-09-05T18:00:00+08:00", "route": "SIN-LHR"},
+    {"flight_id": "QF32",  "aircraft_type": "A380-800",  "assigned_gate": "C1",  "gate_occupation_start": "2026-09-05T15:00:00+08:00", "gate_occupation_end": "2026-09-05T17:30:00+08:00", "route": "SYD-SIN"},
+    {"flight_id": "EK405", "aircraft_type": "A380-800",  "assigned_gate": "F31", "gate_occupation_start": "2026-09-05T16:45:00+08:00", "gate_occupation_end": "2026-09-05T19:00:00+08:00", "route": "SIN-DXB"},
+    {"flight_id": "SQ26",  "aircraft_type": "A350-900",  "assigned_gate": "B8",  "gate_occupation_start": "2026-09-05T15:30:00+08:00", "gate_occupation_end": "2026-09-05T17:15:00+08:00", "route": "SIN-SFO"},
+    {"flight_id": "SQ38",  "aircraft_type": "A350-900",  "assigned_gate": "A3",  "gate_occupation_start": "2026-09-05T15:45:00+08:00", "gate_occupation_end": "2026-09-05T17:30:00+08:00", "route": "SIN-LAX"},
+    {"flight_id": "SQ222", "aircraft_type": "787-10",    "assigned_gate": "A5",  "gate_occupation_start": "2026-09-05T15:20:00+08:00", "gate_occupation_end": "2026-09-05T17:00:00+08:00", "route": "SIN-SYD"},
+    {"flight_id": "SQ806", "aircraft_type": "777-300ER", "assigned_gate": "B4",  "gate_occupation_start": "2026-09-05T16:10:00+08:00", "gate_occupation_end": "2026-09-05T17:40:00+08:00", "route": "SIN-PEK"},
+    {"flight_id": "SQ636", "aircraft_type": "787-10",    "assigned_gate": "B6",  "gate_occupation_start": "2026-09-05T15:45:00+08:00", "gate_occupation_end": "2026-09-05T17:20:00+08:00", "route": "SIN-NRT"}
+  ],
+
+  "disruptions": [
+    {"type": "late_incoming_aircraft", "delay_minutes": 15, "affects_flight": "SQ322"},
+    {"type": "gate_conflict", "gate": "B12", "conflict_time": "2026-09-05T16:30:00+08:00", "conflicting_flight": "SQ318"}
+  ],
+
+  "alternative_gates": ["F31"],
+
+  "canonical_plans": [
+    {"plan_id": "plan_A", "flight_id": "SQ322", "recommended_gate": "B12", "recommended_departure": "2026-09-05T16:20:00+08:00", "actions": ["Stay at B12 and depart before SQ318 arrival"]},
+    {"plan_id": "plan_B", "flight_id": "SQ322", "recommended_gate": "F31", "recommended_departure": "2026-09-05T16:30:00+08:00", "actions": ["Move to F31 (A380-capable) and depart at 16:30"]},
+    {"plan_id": "plan_C", "flight_id": "SQ322", "recommended_gate": "B10", "recommended_departure": "2026-09-05T16:25:00+08:00", "actions": ["Attempt to use B10 (not A380-capable — expect gate incompatibility)"]}
+  ]
+}

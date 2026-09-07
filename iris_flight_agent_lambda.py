@@ -1,10 +1,6 @@
 import json
 import boto3
 
-# ---------------------------------------------------------------------------
-# Config
-# ---------------------------------------------------------------------------
-
 S3_BUCKET = "iris-hackathon-data"  
 S3_FALLBACK_KEY = "opensky/fallback_match.json"
 
@@ -35,11 +31,6 @@ OPENSKY_FIELDS = [
 ]
 
 
-# ---------------------------------------------------------------------------
-# 1. Read cached live states from S3 (pushed there by opensky_pusher.py,
-#    which runs locally on a non-AWS IP since OpenSky blocks AWS/hyperscaler
-#    source IPs for direct API calls)
-# ---------------------------------------------------------------------------
 
 S3_STATES_KEY = "opensky/latest_states.json"
 
@@ -48,11 +39,6 @@ def load_cached_states() -> list:
     obj = s3.get_object(Bucket=S3_BUCKET, Key=S3_STATES_KEY)
     payload = json.loads(obj["Body"].read())
     return payload.get("states", [])
-
-
-# ---------------------------------------------------------------------------
-# 2. Match against cached states (already normalized by the pusher script)
-# ---------------------------------------------------------------------------
 
 
 def find_flight_by_callsign(states: list, callsign_prefix: str) -> dict:
@@ -78,10 +64,6 @@ def flight_id_to_callsign_prefix(flight_id: str) -> str:
     return f"{icao_code}{number}"
 
 
-# ---------------------------------------------------------------------------
-# 3. S3 fallback
-# ---------------------------------------------------------------------------
-
 def save_snapshot(match: dict):
     try:
         s3.put_object(Bucket=S3_BUCKET, Key=S3_FALLBACK_KEY, Body=json.dumps(match))
@@ -95,12 +77,6 @@ def load_snapshot() -> dict:
 
 
 def get_opensky_match(flight_id: str) -> dict:
-    """
-    Entry point: matches flight_id against the cached OpenSky states
-    (last pushed to S3 by opensky_pusher.py running locally). Falls back
-    to the last known-good single-match snapshot if the cache is missing
-    the flight, or if the cache itself can't be read.
-    """
     prefix = flight_id_to_callsign_prefix(flight_id)
 
     try:
@@ -123,10 +99,6 @@ def get_opensky_match(flight_id: str) -> dict:
             print(f"WARNING: S3 fallback also failed ({e2})")
             return None
 
-
-# ---------------------------------------------------------------------------
-# 4. Build the §4 Standard Agent Response
-# ---------------------------------------------------------------------------
 
 def build_flight_agent_response(flight_id: str, opensky_match: dict, delay_minutes_reported: int = None) -> dict:
     if opensky_match is None:
@@ -174,10 +146,6 @@ def build_flight_agent_response(flight_id: str, opensky_match: dict, delay_minut
         )
     }
 
-
-# ---------------------------------------------------------------------------
-# 5. Lambda entry point
-# ---------------------------------------------------------------------------
 
 def lambda_handler(event, context):
     try:

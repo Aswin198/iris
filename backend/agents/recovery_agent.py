@@ -1,5 +1,6 @@
 import json
 import re
+from datetime import datetime
 
 from backend.llm.bedrock_client import BedrockClient
 
@@ -124,7 +125,7 @@ Generate exactly three candidate recovery plans.
                             f"Recovery plan missing required field: {field}"
                         )
 
-            return plans
+            return self._ensure_strategy_diversity(plans, scenario)
 
         except Exception as error:
 
@@ -139,6 +140,36 @@ Generate exactly three candidate recovery plans.
             return self._fallback_plans(
                 scenario
             )
+
+    @staticmethod
+    def _ensure_strategy_diversity(plans: list, scenario: dict) -> list:
+        """Normalize the replay's three strategy shapes before scoring."""
+        flight = scenario["flight"]
+        current_gate = flight["current_gate"]
+        alternatives = scenario.get("gate", {}).get("alternative_gates", [])
+        nearest_gate = alternatives[0] if alternatives else current_gate
+        alternate_gate = alternatives[1] if len(alternatives) > 1 else nearest_gate
+        ready = datetime.fromisoformat(flight["aircraft_ready_time"])
+        strategies = [
+            (current_gate, ready, [
+                "Retain the current gate",
+                "Depart once the aircraft is operationally ready",
+            ]),
+            (nearest_gate, ready, [
+                f"Relocate the aircraft to nearest feasible stand {nearest_gate}",
+                "Depart once the aircraft is operationally ready",
+            ]),
+            (alternate_gate, ready, [
+                f"Relocate the aircraft to alternative stand {alternate_gate}",
+                "Use the alternate stand at the earliest weather-adjusted ready time",
+            ]),
+        ]
+        for plan, (gate, departure, actions) in zip(plans, strategies):
+            plan["flight_id"] = flight["flight_id"]
+            plan["recommended_gate"] = gate
+            plan["recommended_departure"] = departure.isoformat()
+            plan["actions"] = actions
+        return plans
 
     def _extract_json(
         self,
@@ -226,7 +257,7 @@ Generate exactly three candidate recovery plans.
                     ready_time,
                 "actions": [
                     "Retain the current gate",
-                    "Depart once the aircraft is operationally ready"
+                    "Accept the delay while retaining the current stand"
                 ]
             },
 
@@ -255,8 +286,8 @@ Generate exactly three candidate recovery plans.
                 "recommended_departure":
                     ready_time,
                 "actions": [
-                    f"Reassign the aircraft to {gate_b}",
-                    "Depart once the aircraft is operationally ready"
+                    f"Relocate the aircraft to alternative stand {gate_b}",
+                    "Use the alternate stand at the earliest weather-adjusted ready time"
                 ]
             }
         ]

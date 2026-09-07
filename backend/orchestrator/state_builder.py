@@ -145,6 +145,21 @@ def build_shared_state(
             "alternative_gates": alternative_gates,
         },
 
+        # Synthetic next-occupant interval used by the deterministic
+        # optimizer; this is not live airport allocation data.
+        "stand_occupancy": {
+            "B12": {
+                "flight_id": "SQ827",
+                "aircraft_type": "A350-900",
+                "start": scheduled_departure.replace(
+                    hour=14, minute=50, second=0, microsecond=0
+                ).isoformat(),
+                "end": scheduled_departure.replace(
+                    hour=15, minute=40, second=0, microsecond=0
+                ).isoformat(),
+            },
+        },
+
         "ground_operations": {
             "baggage_percent": baggage_percent,
             "refuelling_complete": True,

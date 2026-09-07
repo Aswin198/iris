@@ -1,3 +1,7 @@
+import json
+from datetime import datetime, timedelta
+from math import ceil
+
 from backend.integrations.agent_api_client import (
     AgentAPIClient,
 )
@@ -5,7 +9,6 @@ from backend.agents.gate_agent import GateAgent
 from backend.agents.ground_agent import GroundAgent
 from backend.agents.passenger_agent import PassengerAgent
 from backend.agents.recovery_agent import RecoveryAgent
-from datetime import datetime, timedelta
 from backend.orchestrator.state_builder import (
     build_shared_state,
 )
@@ -15,6 +18,13 @@ class IRISOrchestrator:
 
     GATE_CHANGE_SCORE = 6.0
     GATE_DISTANCE_SCORE_PER_UNIT = 1.5
+    # Synthetic prototype mapping — not an operational Changi rule.
+    WEATHER_DELAY_MINUTES = {
+        "low": 0,
+        "medium": 5,
+        "high": 15,
+        "critical": 25,
+    }
 
     @staticmethod
     def _gate_distance(current_gate: str, recommended_gate: str) -> int:
@@ -75,6 +85,7 @@ class IRISOrchestrator:
 
         print("Calling weather_agent API...")
 
+        weather_result = None
         try:
             weather_result = (
                 self.agent_api.get_weather(
@@ -84,15 +95,18 @@ class IRISOrchestrator:
 
             print("weather_agent: API SUCCESS")
 
-            agent_results.append(
-                weather_result
-            )
-
         except Exception as error:
             print(
                 f"weather_agent API unavailable: {error}"
             )
 
+        weather_result = self._apply_weather_impact(
+            scenario,
+            weather_result,
+            request.get("weather_override"),
+        )
+        if weather_result:
+            agent_results.append(weather_result)
 
         local_results = (
             self._run_specialists(
@@ -183,6 +197,145 @@ class IRISOrchestrator:
             scored_plans,
         )
 
+    def _apply_weather_impact(
+        self,
+        scenario: dict,
+        weather_result: dict | None,
+        weather_override: str | None = None,
+    ) -> dict | None:
+        """Apply live weather or an explicit synthetic DEMO REPLAY override."""
+        override = str(weather_override or "").lower()
+        override_severities = {
+            "clear": "low",
+            "rain": "medium",
+            "thunderstorm": "high",
+        }
+
+        if override in override_severities:
+            severity = override_severities[override]
+            if not weather_result or weather_result.get("status") == "failed":
+                weather_result = {
+                    "agent": "weather_agent",
+                    "status": "completed",
+                    "summary": "Synthetic scenario weather override applied for DEMO REPLAY.",
+                    "findings": [],
+                    "constraints": [],
+                    "recommended_actions": [],
+                }
+            weather_result["status"] = "completed"
+            weather_result["severity"] = severity
+            weather_result["source"] = "scenario_override"
+            weather_result["summary"] = (
+                f"Scenario override: {override.title()} conditions used for "
+                "prototype recovery simulation."
+            )
+            scenario["weather"]["condition"] = override
+        elif not weather_result or weather_result.get("status") == "failed":
+            # No adverse weather is inferred when the live specialist is unavailable.
+            scenario["weather"]["condition"] = "clear"
+            scenario["weather"]["risk_level"] = "low"
+            return None
+        else:
+            severity = str(weather_result.get("severity", "low")).lower()
+
+        if severity not in self.WEATHER_DELAY_MINUTES:
+            severity = "low"
+        delay_minutes = self.WEATHER_DELAY_MINUTES[severity]
+
+        ready_time = datetime.fromisoformat(
+            scenario["flight"]["aircraft_ready_time"]
+        )
+        adjusted_ready = ready_time + timedelta(minutes=delay_minutes)
+        scenario["flight"]["aircraft_ready_time"] = adjusted_ready.isoformat()
+        scenario["ground_operations"]["estimated_ready_time"] = adjusted_ready.isoformat()
+        scenario["weather"]["risk_level"] = severity
+
+        live_text = json.dumps(weather_result).lower()
+        if override not in override_severities:
+            if "thunderstorm" in live_text:
+                scenario["weather"]["condition"] = "thunderstorm"
+            elif "rain" in live_text:
+                scenario["weather"]["condition"] = "rain"
+            else:
+                scenario["weather"]["condition"] = "clear"
+
+        if override == "clear":
+            explanation = (
+                "Weather conditions are within normal operating limits; "
+                "no additional weather delay applied."
+            )
+        elif override == "rain":
+            explanation = (
+                "Rain scenario conditions detected; prototype weather-impact "
+                "model adds 5 minutes to the earliest feasible departure."
+            )
+        elif override == "thunderstorm":
+            explanation = (
+                "Thunderstorm scenario conditions detected; prototype "
+                "weather-impact model adds 15 minutes to the earliest feasible departure."
+            )
+        elif severity == "low":
+            explanation = (
+                "Weather conditions are within normal operating limits; "
+                "no additional weather delay applied."
+            )
+        elif severity == "high" and "thunderstorm" in live_text:
+            explanation = (
+                "Thunderstorm conditions detected; prototype weather-impact "
+                "model adds 15 minutes to the earliest feasible departure."
+            )
+        elif severity == "medium":
+            explanation = (
+                "Adverse weather conditions detected; prototype weather-impact "
+                "model adds 5 minutes to the earliest feasible departure."
+            )
+        elif severity == "critical":
+            explanation = (
+                "Severe weather conditions detected; prototype weather-impact "
+                "model adds 25 minutes to the earliest feasible departure."
+            )
+        else:
+            explanation = (
+                "Adverse weather conditions detected; prototype weather-impact "
+                "model adds 15 minutes to the earliest feasible departure."
+            )
+
+        if not isinstance(weather_result.get("findings"), list):
+            weather_result["findings"] = []
+        if not isinstance(weather_result.get("constraints"), list):
+            weather_result["constraints"] = []
+        if override in override_severities:
+            weather_result["findings"] = [
+                f"Scenario override: {override} weather selected for prototype recovery simulation.",
+            ]
+        weather_result["findings"].append(explanation)
+        weather_result["constraints"].append(
+            {
+                "type": "prototype_weather_impact",
+                "value": f"{delay_minutes} minutes",
+            }
+        )
+        scenario["passengers"]["at_risk_connections"] = min(
+            scenario["passengers"]["connecting_passengers"],
+            ceil(
+                scenario["passengers"]["connecting_passengers"]
+                * max(
+                    0,
+                    int(
+                        (
+                            adjusted_ready
+                            - datetime.fromisoformat(
+                                scenario["flight"]["scheduled_departure"]
+                            )
+                        ).total_seconds()
+                        / 60
+                    ),
+                )
+                / 60,
+            ),
+        )
+        return weather_result
+
     def _run_specialists(
         self,
         scenario: dict,
@@ -252,9 +405,28 @@ class IRISOrchestrator:
                 and conflict_time
                 and stand_clear_time > datetime.fromisoformat(conflict_time)
             )
-            gate_conflicts = int(not gate_available or has_gate_conflict)
-            delay_exposure = max(0, departure_delay_minutes - 10)
-            passengers_at_risk = round(delay_exposure * 0.7 / 60)
+            next_occupancy = scenario.get("stand_occupancy", {}).get(
+                plan["recommended_gate"]
+            )
+            has_next_occupancy_overlap = bool(
+                next_occupancy
+                and datetime.fromisoformat(scenario["flight"]["scheduled_arrival"])
+                < datetime.fromisoformat(next_occupancy["end"])
+                and stand_clear_time
+                > datetime.fromisoformat(next_occupancy["start"])
+            )
+            gate_conflicts = int(
+                not gate_available
+                or has_gate_conflict
+                or has_next_occupancy_overlap
+            )
+            connecting_passengers = int(
+                scenario.get("passengers", {}).get("connecting_passengers", 42)
+            )
+            passengers_at_risk = min(
+                connecting_passengers,
+                ceil(connecting_passengers * departure_delay_minutes / 60),
+            )
             downstream_delay = round(departure_delay_minutes * 0.65)
             gate_distance_units = self._gate_distance(
                 current_gate,
@@ -278,6 +450,13 @@ class IRISOrchestrator:
             elif has_gate_conflict:
                 violations.append(
                     f"Stand {current_gate} must be clear by {conflict_time}"
+                )
+            elif has_next_occupancy_overlap:
+                violations.append(
+                    f"Stand {plan['recommended_gate']} is required by "
+                    f"{next_occupancy['flight_id']} from "
+                    f"{next_occupancy['start'][11:16]}; weather-adjusted "
+                    "stand clearance would overlap the next allocation."
                 )
 
             feasible = gate_conflicts == 0 and not violations

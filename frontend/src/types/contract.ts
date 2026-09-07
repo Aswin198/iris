@@ -44,6 +44,9 @@ export interface Disruption {
 export interface RecoveryRequest {
   scenario_id: string;
   flight: RequestFlight;
+  tracking_flight_id?: string;
+  /** Synthetic DEMO REPLAY weather override; omitted for live-only callers. */
+  weather_override?: 'clear' | 'rain' | 'thunderstorm';
   disruptions: Disruption[];
 }
 

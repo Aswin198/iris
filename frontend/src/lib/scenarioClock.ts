@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 const REPLAY_BOOT_MS = Date.now();
 export const REPLAY_DATE = '2026-09-08';
-export const REPLAY_START_MINUTE = 12 * 60;
+export const REPLAY_START_MINUTE = 13 * 60 + 54 + 50 / 60;
 export const REPLAY_SECONDS_PER_REAL_SECOND = 1;
 
 

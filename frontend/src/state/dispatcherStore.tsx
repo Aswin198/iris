@@ -7,7 +7,6 @@ import {
   type ReactNode,
 } from 'react';
 
-import { shiftIso } from '../lib/time';
 import { replayNowMinutes } from '../lib/scenarioClock';
 
 
@@ -52,52 +51,20 @@ const DispatcherContext =
 
 
 function buildDemoFlights(): DispatcherFlight[] {
-  const now = new Date().toISOString();
-
   return [
     {
-      flight_id: 'SQ318',
-      origin: 'SIN',
-      destination: 'LHR',
-      scheduled_departure: shiftIso(now, 35),
-      scheduled_arrival: shiftIso(now, 13 * 60),
+      flight_id: 'SQ319',
+      origin: 'LHR',
+      destination: 'SIN',
+      scheduled_departure: '2026-09-08T14:20:00+08:00',
+      scheduled_arrival: '2026-09-08T14:00:00+08:00',
       terminal: 'T3',
       gate: 'B8',
-      aircraft_type: '777-300ER',
+      aircraft_type: 'B777-300ER',
       inbound_delay_minutes: 20,
-    },
-    {
-      flight_id: 'SQ638',
-      origin: 'SIN',
-      destination: 'NRT',
-      scheduled_departure: shiftIso(now, 50),
-      scheduled_arrival: shiftIso(now, 7 * 60),
-      terminal: 'T3',
-      gate: 'B10',
-      aircraft_type: '787-10',
-      inbound_delay_minutes: 8,
-    },
-    {
-      flight_id: 'SQ212',
-      origin: 'SIN',
-      destination: 'SYD',
-      scheduled_departure: shiftIso(now, 70),
-      scheduled_arrival: shiftIso(now, 8 * 60),
-      terminal: 'T2',
-      gate: 'F40',
-      aircraft_type: 'A350-900',
-      inbound_delay_minutes: 15,
-    },
-    {
-      flight_id: 'TR456',
-      origin: 'SIN',
-      destination: 'BKK',
-      scheduled_departure: shiftIso(now, 90),
-      scheduled_arrival: shiftIso(now, 3 * 60),
-      terminal: 'T1',
-      gate: 'D40',
-      aircraft_type: 'A320neo',
-      inbound_delay_minutes: 5,
+      outbound_flight_id: 'SQ318',
+      outbound_destination: 'LHR',
+      outbound_departure: '2026-09-08T14:20:00+08:00',
     },
   ];
 }

@@ -7,7 +7,7 @@ import urllib.error
 # Config
 # ---------------------------------------------------------------------------
 
-S3_BUCKET = "iris-hackathon-data-<yourname>"   # <-- replace with your actual bucket name
+S3_BUCKET = "iris-hackathon-data" 
 S3_FALLBACK_KEY = "weather/latest.json"
 DEFAULT_ICAO = "WSSS"
 

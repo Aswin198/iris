@@ -30,11 +30,11 @@ export function StandPlanner() {
       ...stand,
       blocks: stand.blocks.filter((block) => !block.subject).concat(
         stand.stand_id === subjectGate
-          ? [{
-              block_id: `subject_${selectedFlight.flight_id}`,
-              flight_id: selectedFlight.flight_id,
-              origin: selectedFlight.origin,
-              destination: selectedFlight.destination,
+              ? [{
+              block_id: `subject_${selectedFlight.outbound_flight_id ?? selectedFlight.flight_id}`,
+              flight_id: selectedFlight.outbound_flight_id ?? selectedFlight.flight_id,
+              origin: selectedFlight.destination,
+              destination: selectedFlight.outbound_destination ?? selectedFlight.destination,
               aircraft_type: selectedFlight.aircraft_type,
               start_min: isoToSgtMinutes(selectedFlight.scheduled_arrival),
               end_min: isoToSgtMinutes(selectedFlight.outbound_departure ?? selectedFlight.scheduled_departure),
@@ -86,7 +86,12 @@ export function StandPlanner() {
       aria-label="Stand allocation chart"
       className="flex shrink-0 flex-col border-b border-rule bg-field"
     >
-      <PlannerHeader board={board} conflictLive={conflictLive} window={window} />
+      <PlannerHeader
+        board={board}
+        conflictLive={conflictLive}
+        window={window}
+        terminal={selectedFlight?.terminal ?? 'T3'}
+      />
 
       <div className="relative">
         <div ref={scrollRef} className="overflow-x-auto">
@@ -132,7 +137,7 @@ export function StandPlanner() {
         <EdgeFade />
       </div>
 
-      <Legend flightId={selectedFlight?.flight_id ?? SUBJECT_FLIGHT_ID} />
+      <Legend flightId={selectedFlight?.outbound_flight_id ?? selectedFlight?.flight_id ?? SUBJECT_FLIGHT_ID} />
     </section>
   );
 }
@@ -154,15 +159,17 @@ function PlannerHeader({
   board,
   conflictLive,
   window,
+  terminal,
 }: {
   board: ReturnType<typeof buildBoardModel>;
   conflictLive: boolean;
   window: BoardWindow;
+  terminal: string;
 }) {
   return (
     <header className="flex flex-wrap items-baseline gap-x-6 gap-y-1 border-b border-rule px-4 py-3">
       <h2 className="font-narrow text-lg font-semibold tracking-wide text-ink">
-        Terminal 2 stand allocation
+        {terminal} stand allocation
       </h2>
       <p className="tnum font-data text-tiny text-ink-faint">
         {minutesToHhmm(window.start_min)}–{minutesToHhmm(window.end_min)} SGT
@@ -473,7 +480,7 @@ function Block({
   const base = block.subject
     ? conflict
       ? 'hatch-conflict bg-conflict-deep text-ink border-conflict'
-      : 'bg-committed/85 text-[#071b12] border-committed'
+      : 'bg-committed/30 text-ink border-committed'
     : block.claimant
       ? 'border-rule-strong bg-traffic/45 text-traffic-ink'
       : 'border-rule-strong bg-traffic/30 text-traffic-ink';
@@ -486,7 +493,7 @@ function Block({
         block.start_min,
       )}–${minutesToHhmm(end)}`}
     >
-      <span className="relative truncate px-2 font-narrow text-tiny font-semibold tracking-wide">
+      <span className="relative truncate px-3 font-narrow text-tiny font-semibold tracking-wide">
         {block.flight_id}
       </span>
       {width > 14 ? (
@@ -525,13 +532,14 @@ function Ghost({ ghost, phase }: { ghost: NonNullable<ReturnType<typeof buildGho
         ghost.from_min,
       )}–${minutesToHhmm(ghost.to_min)}`}
     >
-      <span
-        className="tnum whitespace-nowrap px-2 font-data text-[0.625rem] font-semibold"
-        style={{ color: ghost.committed ? 'var(--committed)' : 'var(--ghost)' }}
-      >
-        {ghost.committed ? 'authorised' : ghost.label} · block {formatBlockDuration(blockMinutes)} ·{' '}
-        {minutesToHhmm(ghost.to_min)}
-      </span>
+      {!ghost.committed ? (
+        <span
+          className="tnum whitespace-nowrap px-2 font-data text-[0.625rem] font-semibold"
+          style={{ color: 'var(--ghost)' }}
+        >
+          {ghost.label} · block {formatBlockDuration(blockMinutes)} · {minutesToHhmm(ghost.to_min)}
+        </span>
+      ) : null}
     </div>
   );
 }

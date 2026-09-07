@@ -33,6 +33,9 @@ export function buildRequest(
   flight: DispatcherFlight,
 ): RecoveryRequest {
   const disruptions: RecoveryRequest['disruptions'] = [];
+  const recoveryFlightId = flight.outbound_flight_id ?? flight.flight_id;
+  const recoveryDestination = flight.outbound_destination ?? flight.destination;
+  const recoveryDeparture = flight.outbound_departure ?? flight.scheduled_departure;
 
   if (input.late_incoming_minutes > 0) {
     disruptions.push({
@@ -62,27 +65,30 @@ export function buildRequest(
 
   return {
     scenario_id:
-      `scenario_${flight.flight_id.toLowerCase()}`,
+      `scenario_${recoveryFlightId.toLowerCase()}`,
 
     flight: {
-      flight_id:
-        flight.flight_id,
+      flight_id: recoveryFlightId,
 
-      origin:
-        flight.origin,
+      origin: flight.destination,
 
-      destination:
-        flight.destination,
+      destination: recoveryDestination,
 
-      scheduled_departure:
-        flight.scheduled_departure,
+      scheduled_departure: recoveryDeparture,
 
-      scheduled_arrival:
-        flight.scheduled_arrival,
+      scheduled_arrival: flight.scheduled_arrival,
 
       gate:
         flight.gate,
     },
+
+    // Keep recovery centred on the outbound sector while allowing the live
+    // flight agent to look up the arriving aircraft when one exists.
+    tracking_flight_id: flight.flight_id,
+
+    // DEMO REPLAY control: the live Weather Agent is still called, but this
+    // explicit synthetic override drives the recovery simulation.
+    weather_override: input.weather_condition,
 
     disruptions,
   };

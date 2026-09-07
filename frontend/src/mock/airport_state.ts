@@ -9,7 +9,7 @@
 
 import type { ScenarioState } from '../types/contract';
 
-export const SCENARIO_DATE = '2026-09-05';
+export const SCENARIO_DATE = '2026-09-08';
 
 export interface StandBlock {
   block_id: string;
@@ -66,8 +66,8 @@ export const STAND_BOARD: Stand[] = [
         origin: 'SIN',
         destination: 'LHR',
         aircraft_type: '777-300ER',
-        start_min: 12 * 60 + 40,
-        end_min: 14 * 60,
+        start_min: 14 * 60,
+        end_min: 14 * 60 + 20,
         subject: true,
       },
       {
@@ -100,7 +100,17 @@ export const STAND_BOARD: Stand[] = [
   {
     stand_id: 'B12',
     category: 'code_e',
-    blocks: [],
+    blocks: [
+      {
+        block_id: 'blk_sq827',
+        flight_id: 'SQ827',
+        origin: 'HKG',
+        destination: 'SIN',
+        aircraft_type: 'A350-900',
+        start_min: 14 * 60 + 50,
+        end_min: 15 * 60 + 40,
+      },
+    ],
   },
   {
     stand_id: 'B14',
@@ -120,10 +130,10 @@ export const BASE_SCENARIO: ScenarioState = {
     flight_id: SUBJECT_FLIGHT_ID,
     origin: 'SIN',
     destination: 'LHR',
-    scheduled_departure: `${SCENARIO_DATE}T14:00:00+08:00`,
-    scheduled_arrival: `${SCENARIO_DATE}T20:30:00+01:00`,
+    scheduled_departure: `${SCENARIO_DATE}T14:20:00+08:00`,
+    scheduled_arrival: `${SCENARIO_DATE}T14:00:00+08:00`,
     current_gate: 'B8',
-    aircraft_ready_time: `${SCENARIO_DATE}T14:12:00+08:00`,
+    aircraft_ready_time: `${SCENARIO_DATE}T14:40:00+08:00`,
   },
   weather: {
     condition: 'thunderstorm',

@@ -45,7 +45,10 @@ class AgentAPIClient:
             "scenario": {
                 "flight": {
                     "flight_id":
-                        request["flight"]["flight_id"]
+                        request.get(
+                            "tracking_flight_id",
+                            request["flight"]["flight_id"],
+                        )
                 }
             },
             "disruptions":

@@ -5,14 +5,25 @@ import { useDispatcher } from '../../state/dispatcherStore';
 
 export function TopBar() {
   const { state } = useOps();
-  const { selectedFlight } = useDispatcher();
+  const { selectedFlight, clearFlight } = useDispatcher();
   const { minutes, seconds } = useScenarioClock();
   const live = state.source === 'live';
   const flight = selectedFlight!;
+  const recoveryId = flight.outbound_flight_id ?? flight.flight_id;
+  const recoveryOrigin = flight.destination;
+  const recoveryDestination = flight.outbound_destination ?? flight.destination;
+  const recoveryDeparture = flight.outbound_departure ?? flight.scheduled_departure;
 
   return (
     <header className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-rule bg-panel px-4 py-2.5">
       <h1 className="flex items-baseline gap-2.5">
+        <button
+          type="button"
+          onClick={clearFlight}
+          className="label mr-2 border border-rule px-2 py-1 text-ink-dim hover:border-rule-strong hover:text-ink"
+        >
+          ← Dispatcher
+        </button>
         <span className="font-narrow text-md font-bold uppercase tracking-[0.18em] text-ink">
           IRIS
         </span>
@@ -20,16 +31,21 @@ export function TopBar() {
       </h1>
 
       <p className="flex items-baseline gap-2">
-        <span className="label">flight</span>
+        <span className="label">recovery flight</span>
         <span className="tnum font-data text-sm font-semibold text-subject">
-          {flight.flight_id}
+          {recoveryId}
         </span>
         <span className="tnum font-data text-tiny text-ink-dim">
-          {flight.origin}–{flight.destination}
+          {recoveryOrigin}–{recoveryDestination}
         </span>
         <span className="tnum font-data text-tiny text-ink-faint">
-          std {hhmm(flight.scheduled_departure)}
+          std {hhmm(recoveryDeparture)} · {flight.terminal} · {flight.gate}
         </span>
+      </p>
+
+      <p className="tnum font-data text-tiny text-ink-faint">
+        inbound {flight.flight_id} · ETA {hhmm(flight.scheduled_arrival)}
+        {flight.inbound_delay_minutes > 0 ? ` · +${flight.inbound_delay_minutes} min late` : ''}
       </p>
 
       <div className="ml-auto flex items-center gap-4">

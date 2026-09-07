@@ -76,6 +76,13 @@ const OP_COST = {
 } as const;
 const GATE_DISTANCE_SCORE_PER_UNIT = 1.5;
 
+export const PROTOTYPE_WEATHER_DELAY_MINUTES: Record<string, number> = {
+  low: 0,
+  medium: 5,
+  high: 15,
+  critical: 25,
+};
+
 function gateDistance(currentGate: string, recommendedGate: string): number {
   if (currentGate === recommendedGate) return 0;
   const currentNumber = Number(currentGate.replace(/\D/g, ''));
@@ -101,7 +108,14 @@ export function deriveState(input: DisruptionInput): DerivedState {
   const scheduled = isoToSgtMinutes(BASE_SCENARIO.flight.scheduled_departure);
 
   const inboundPush = Math.max(0, input.late_incoming_minutes - TURN_BUFFER_MIN);
-  const earliestReady = scheduled + inboundPush;
+  const weatherDelay = PROTOTYPE_WEATHER_DELAY_MINUTES[
+    input.weather_condition === 'thunderstorm'
+      ? 'high'
+      : input.weather_condition === 'rain'
+        ? 'medium'
+        : 'low'
+  ];
+  const earliestReady = scheduled + inboundPush + weatherDelay;
 
   // Recovery timing is driven only by inbound aircraft delay.
   const baggageRemaining = 0;
@@ -122,15 +136,15 @@ export function deriveState(input: DisruptionInput): DerivedState {
 
   // Stands the 777-300ER can be towed to: compatible, not the current one, and
   // free across the recovery window on the synthetic board.
-  const occupiedLater = new Set(
+  const occupiedAtTurnaroundStart = new Set(
     STAND_BOARD.filter((s) =>
       s.blocks.some(
-        (b) => !b.subject && b.end_min > earliestReady && b.start_min < earliestReady + 90,
+        (b) => !b.subject && b.end_min > earliestReady && b.start_min <= earliestReady,
       ),
     ).map((s) => s.stand_id),
   );
   const alternatives = WIDEBODY_STANDS.filter(
-    (id) => id !== BASE_SCENARIO.flight.current_gate && !occupiedLater.has(id),
+    (id) => id !== BASE_SCENARIO.flight.current_gate && !occupiedAtTurnaroundStart.has(id),
   );
 
   return {
@@ -146,8 +160,10 @@ export function deriveState(input: DisruptionInput): DerivedState {
 
 /** Connection risk climbs once a departure slips past the connection buffer. */
 function passengersAtRisk(_input: DisruptionInput, delayMinutes: number): number {
-  const exposed = Math.max(0, delayMinutes - 10);
-  return Math.round((exposed * 0.7) / 60);
+  return Math.min(
+    _input.connecting_passengers,
+    Math.ceil((_input.connecting_passengers * Math.max(0, delayMinutes)) / 60),
+  );
 }
 
 export function buildScenarioState(input: DisruptionInput): ScenarioState {
@@ -230,12 +246,16 @@ export function generatePlans(input: DisruptionInput): EvaluatedPlan[] {
   const d = deriveState(input);
   const currentStand = BASE_SCENARIO.flight.current_gate;
   const alternative = d.alternative_stands[0] ?? null;
+  const alternate = d.alternative_stands[1] ?? alternative;
   const flightId = BASE_SCENARIO.flight.flight_id;
 
   const plans: EvaluatedPlan[] = [];
 
-  /* PLAN A — hold the stand, depart as soon as the ramp finishes. */
-  const offA = d.earliest_ready_min + d.baggage_remaining_min;
+  /* PLAN A — retain B8 and accept the delay, exposing the hard deadline breach. */
+  const offA = Math.max(
+    d.earliest_ready_min + d.baggage_remaining_min,
+    input.gate_conflict ? input.gate_conflict_min + STAND_CLEAR_MIN : 0,
+  );
   plans.push(
     evaluate(input, d, {
       plan_id: 'plan_A',
@@ -245,7 +265,7 @@ export function generatePlans(input: DisruptionInput): EvaluatedPlan[] {
       op_cost: OP_COST.hold,
       actions: [
         `Hold ${flightId} at stand ${currentStand}`,
-        'Complete hold baggage loading at normal priority',
+        'Accept the delay while retaining the current stand',
       ],
     }),
   );
@@ -271,27 +291,18 @@ export function generatePlans(input: DisruptionInput): EvaluatedPlan[] {
     );
   }
 
-  /* PLAN C — keep the stand, re-sequence the claimant, wait out the cell. */
-  const offC = offA;
-  const claimant = STAND_BOARD.find((s) => s.stand_id === currentStand)?.blocks.find(
-    (b) => b.claimant,
-  );
-  const displacing = input.gate_conflict && Boolean(claimant);
+  /* PLAN C — alternate compatible relocation with a timing trade-off. */
+  const offC = d.earliest_ready_min + 17;
   plans.push(
     evaluate(input, d, {
       plan_id: 'plan_C',
-      strategy: `Hold ${currentStand}, delay`,
-      stand_id: currentStand,
+      strategy: `${currentStand} → ${alternate}, +5 min`,
+      stand_id: alternate ?? currentStand,
       off_block_min: offC,
-      op_cost: displacing ? OP_COST.displace_claimant : OP_COST.hold,
-      displaces: displacing ? claimant?.flight_id : undefined,
-      resolves_conflict_by_displacement: displacing,
+      op_cost: OP_COST.relocate + OP_COST.weather_window,
       actions: [
-        `Hold ${flightId} at stand ${currentStand}`,
-        ...(displacing && claimant
-          ? [`Re-sequence ${claimant.flight_id} to an alternative stand`]
-          : []),
-        'Depart after the convective cell clears the field',
+        `Reassign aircraft from ${currentStand} to ${alternate ?? currentStand}`,
+        'Use the alternate stand with a deterministic timing trade-off',
       ],
     }),
   );
@@ -305,6 +316,14 @@ function evaluate(input: DisruptionInput, d: DerivedState, spec: PlanSpec): Eval
 
   const violations: string[] = [];
   let gateConflicts = 0;
+  const nextOccupant = STAND_BOARD.find((stand) => stand.stand_id === spec.stand_id)?.blocks.find(
+    (block) => !block.subject,
+  );
+  const nextOccupancyOverlap = Boolean(
+    nextOccupant &&
+      isoToSgtMinutes(BASE_SCENARIO.flight.scheduled_arrival) < nextOccupant.end_min &&
+      standClearMin > nextOccupant.start_min,
+  );
 
   // Hard constraint: the stand must be clear before its next occupant arrives.
   if (
@@ -318,6 +337,14 @@ function evaluate(input: DisruptionInput, d: DerivedState, spec: PlanSpec): Eval
       `Stand ${spec.stand_id} must be clear by ${minutesToHhmm(
         d.stand_deadline_min,
       )}; this plan clears it at ${minutesToHhmm(standClearMin)}`,
+    );
+  }
+  if (nextOccupancyOverlap && nextOccupant) {
+    gateConflicts = 1;
+    violations.push(
+      `Stand ${spec.stand_id} is required by ${nextOccupant.flight_id} from ${minutesToHhmm(
+        nextOccupant.start_min,
+      )}; weather-adjusted stand clearance would overlap the next allocation.`,
     );
   }
 
@@ -397,6 +424,16 @@ export function buildAgentResults(input: DisruptionInput): AgentResponse[] {
 
   const flightSeverity: Severity =
     input.late_incoming_minutes >= 40 ? 'high' : input.late_incoming_minutes > 0 ? 'medium' : 'low';
+  const weatherSeverity = d.weather_risk;
+  const weatherDelay = PROTOTYPE_WEATHER_DELAY_MINUTES[weatherSeverity];
+  const weatherImpactFinding =
+    weatherSeverity === 'low'
+      ? 'Weather conditions are within normal operating limits; no additional weather delay applied.'
+      : weatherSeverity === 'high' && input.weather_condition === 'thunderstorm'
+        ? 'Thunderstorm conditions detected; prototype weather-impact model adds 15 minutes to the earliest feasible departure.'
+        : weatherSeverity === 'medium'
+          ? 'Adverse weather conditions detected; prototype weather-impact model adds 5 minutes to the earliest feasible departure.'
+          : 'Adverse weather conditions detected; prototype weather-impact model adds 15 minutes to the earliest feasible departure.';
 
   return [
     {
@@ -432,6 +469,7 @@ export function buildAgentResults(input: DisruptionInput): AgentResponse[] {
       findings: [
         `Reported condition ${input.weather_condition} at WSSS`,
         `Visibility ${s.weather.visibility_m} m, wind ${s.weather.wind_speed_kt} kt from ${s.weather.wind_direction_deg}°`,
+        weatherImpactFinding,
         d.weather_window
           ? 'Departures inside the cell carry additional taxi and queue delay'
           : 'Departure queue nominal',
@@ -442,8 +480,17 @@ export function buildAgentResults(input: DisruptionInput): AgentResponse[] {
               type: 'weather_window',
               value: sgtMinutesToIso(SCENARIO_DATE, d.weather_window.end_min),
             },
+            {
+              type: 'prototype_weather_impact',
+              value: `${weatherDelay} minutes`,
+            },
           ]
-        : [],
+        : [
+            {
+              type: 'prototype_weather_impact',
+              value: `${weatherDelay} minutes`,
+            },
+          ],
       recommended_actions: d.weather_window
         ? ['Prefer an off-block before the cell or after it clears']
         : [],

@@ -51,7 +51,10 @@ export function DisruptionConsole() {
         />
 
         <fieldset className="space-y-2">
-          <Legend icon={<IconStorm size={14} />}>Weather at WSSS</Legend>
+          <Legend icon={<IconStorm size={14} />}>
+            Weather at WSSS
+            <span className="ml-1 text-ink-faint">· scenario override</span>
+          </Legend>
           <div className="flex" role="radiogroup" aria-label="Weather at WSSS">
             {WEATHER_OPTIONS.map((o, i) => {
               const active = d.weather_condition === o.value;

@@ -3,21 +3,12 @@ import boto3
 import urllib.request
 import urllib.error
 
-# ---------------------------------------------------------------------------
-# Config
-# ---------------------------------------------------------------------------
-
 S3_BUCKET = "iris-hackathon-data" 
 S3_FALLBACK_KEY = "weather/latest.json"
 DEFAULT_ICAO = "WSSS"
 
 s3 = boto3.client("s3")
 
-
-# ---------------------------------------------------------------------------
-# 1. Raw API call (using urllib instead of requests - no extra deps needed
-#    in Lambda's default runtime, since 'requests' is not preinstalled)
-# ---------------------------------------------------------------------------
 
 def fetch_metar(icao: str = DEFAULT_ICAO) -> dict:
     url = f"https://aviationweather.gov/api/data/metar?ids={icao}&format=json"
@@ -28,10 +19,6 @@ def fetch_metar(icao: str = DEFAULT_ICAO) -> dict:
         raise ValueError(f"No METAR data returned for {icao}")
     return data[0]
 
-
-# ---------------------------------------------------------------------------
-# 2. Normalize into the standard IRIS weather object (API_CONTRACT.md §13)
-# ---------------------------------------------------------------------------
 
 def to_standard_weather_object(raw_metar: dict, icao: str = DEFAULT_ICAO) -> dict:
     visibility_m = int(raw_metar.get("visib", 10) * 1609.34) if raw_metar.get("visib") else 9999
@@ -67,10 +54,6 @@ def _classify_risk(condition: str, visibility_m: int, wind_speed_kt: float) -> s
     return "low"
 
 
-# ---------------------------------------------------------------------------
-# 3. S3 fallback (used if the live AviationWeather call fails)
-# ---------------------------------------------------------------------------
-
 def save_snapshot(weather_obj: dict):
     try:
         s3.put_object(Bucket=S3_BUCKET, Key=S3_FALLBACK_KEY, Body=json.dumps(weather_obj))
@@ -95,10 +78,6 @@ def get_weather_snapshot(icao: str = DEFAULT_ICAO) -> dict:
         print(f"WARNING: live weather fetch failed ({e}); falling back to S3 snapshot")
         return load_snapshot()
 
-
-# ---------------------------------------------------------------------------
-# 4. Build the §4 Standard Agent Response
-# ---------------------------------------------------------------------------
 
 def build_weather_agent_response(weather_obj: dict) -> dict:
     findings = []
@@ -128,10 +107,6 @@ def build_weather_agent_response(weather_obj: dict) -> dict:
         )
     }
 
-
-# ---------------------------------------------------------------------------
-# 5. Lambda entry point
-# ---------------------------------------------------------------------------
 
 def lambda_handler(event, context):
     try:
